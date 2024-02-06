@@ -158,6 +158,8 @@ abstract contract ERC404 is IERC404, Ownable {
       }
 
       _ownerOf[id] = to;
+
+      // On transfer of an NFT, any previous approval is reset.
       delete getApproved[id];
 
       // update _owned for sender
