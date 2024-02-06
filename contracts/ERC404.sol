@@ -14,32 +14,35 @@ abstract contract ERC404 is IERC404, Ownable {
   /// @dev Token symbol
   string public symbol;
 
-  /// @dev Decimals for fractional representation
+  /// @dev Decimals for ERC20 representation
   uint8 public immutable decimals;
 
-  /// @dev Total supply in fractionalized representation
+  /// @dev Units for ERC20 representation
+  uint256 public immutable units;
+
+  /// @dev Total supply in ERC20 representation
   uint256 public immutable totalSupply;
 
   /// @dev Current mint counter, monotonically increasing to ensure accurate ownership
   uint256 public minted;
 
   // Mappings
-  /// @dev Balance of user in fractional representation
+  /// @dev Balance of user in ERC20 representation
   mapping(address => uint256) public balanceOf;
 
-  /// @dev Allowance of user in fractional representation
+  /// @dev Allowance of user in ERC20 representation
   mapping(address => mapping(address => uint256)) public allowance;
 
-  /// @dev Approval in native representaion
+  /// @dev Approval in ERC721 representaion
   mapping(uint256 => address) public getApproved;
 
-  /// @dev Approval for all in native representation
+  /// @dev Approval for all in ERC721 representation
   mapping(address => mapping(address => bool)) public isApprovedForAll;
 
-  /// @dev Owner of id in native representation
+  /// @dev Owner of id in ERC721 representation
   mapping(uint256 => address) internal _ownerOf;
 
-  /// @dev Array of owned ids in native representation
+  /// @dev Array of owned ids in ERC721 representation
   mapping(address => uint256[]) internal _owned;
 
   /// @dev Tracks indices for the _owned mapping
@@ -53,22 +56,22 @@ abstract contract ERC404 is IERC404, Ownable {
     string memory _name,
     string memory _symbol,
     uint8 _decimals,
-    uint256 _totalNativeSupply,
+    uint256 _totalERC721Supply,
     address _owner
   ) Ownable(_owner) {
     name = _name;
     symbol = _symbol;
     decimals = _decimals;
-    totalSupply = _totalNativeSupply * (10 ** decimals);
+    units = 10 ** decimals;
+    totalSupply = _totalERC721Supply * units;
   }
 
-  /// @notice Initialization function to set pairs / etc
-  ///         saving gas by avoiding mint / burn on unnecessary targets
+  /// @notice Initialization function to set pairs / etc, saving gas by avoiding mint / burn on unnecessary targets
   function setWhitelist(address target, bool state) public onlyOwner {
     whitelist[target] = state;
   }
 
-  /// @notice Function to find owner of a given native token
+  /// @notice Function to find owner of a given ERC721 token
   function ownerOf(uint256 id) public view virtual returns (address owner) {
     owner = _ownerOf[id];
 
@@ -81,46 +84,53 @@ abstract contract ERC404 is IERC404, Ownable {
   function tokenURI(uint256 id) public view virtual returns (string memory);
 
   /// @notice Function for token approvals
-  /// @dev This function assumes id / native if amount less than or equal to current max id
+  /// @dev This function assumes id / ERC721 if amount less than or equal to current max id
   function approve(
     address spender,
-    uint256 amountOrId
+    uint256 valueOrId
   ) public virtual returns (bool) {
-    if (amountOrId <= minted && amountOrId > 0) {
-      address owner = _ownerOf[amountOrId];
+    if (valueOrId <= minted && valueOrId > 0) {
+      // Intention is to approve as ERC-721 token (id).
+      uint256 id = valueOrId;
+      address nftOwner = _ownerOf[id];
 
-      if (msg.sender != owner && !isApprovedForAll[owner][msg.sender]) {
+      if (msg.sender != nftOwner && !isApprovedForAll[nftOwner][msg.sender]) {
         revert Unauthorized();
       }
 
-      getApproved[amountOrId] = spender;
+      getApproved[id] = spender;
 
-      emit Approval(owner, spender, amountOrId);
+      emit Approval(nftOwner, spender, id);
+      emit ERC721Approval(nftOwner, spender, id);
     } else {
-      allowance[msg.sender][spender] = amountOrId;
+      // Intention is to approve as ERC-20 token (value).
+      uint256 value = valueOrId;
+      allowance[msg.sender][spender] = value;
 
-      emit Approval(msg.sender, spender, amountOrId);
+      emit Approval(msg.sender, spender, value);
+      emit ERC20Approval(msg.sender, spender, value);
     }
 
     return true;
   }
 
-  /// @notice Function native approvals
+  /// @notice Function ERC721 approvals
   function setApprovalForAll(address operator, bool approved) public virtual {
     isApprovedForAll[msg.sender][operator] = approved;
-
     emit ApprovalForAll(msg.sender, operator, approved);
   }
 
   /// @notice Function for mixed transfers
-  /// @dev This function assumes id / native if amount less than or equal to current max id
+  /// @dev This function assumes id / ERC721 if amount less than or equal to current max id
   function transferFrom(
     address from,
     address to,
-    uint256 amountOrId
+    uint256 valueOrId
   ) public virtual {
-    if (amountOrId <= minted) {
-      if (from != _ownerOf[amountOrId]) {
+    if (valueOrId <= minted) {
+      uint256 id = valueOrId;
+      // Intention is to transfer as ERC-721 token (id).
+      if (from != _ownerOf[id]) {
         revert InvalidSender();
       }
 
@@ -131,50 +141,54 @@ abstract contract ERC404 is IERC404, Ownable {
       if (
         msg.sender != from &&
         !isApprovedForAll[from][msg.sender] &&
-        msg.sender != getApproved[amountOrId]
+        msg.sender != getApproved[id]
       ) {
         revert Unauthorized();
       }
 
-      balanceOf[from] -= _getUnit();
+      balanceOf[from] -= units;
 
       unchecked {
-        balanceOf[to] += _getUnit();
+        balanceOf[to] += units;
       }
 
-      _ownerOf[amountOrId] = to;
-      delete getApproved[amountOrId];
+      _ownerOf[id] = to;
+      delete getApproved[id];
 
       // update _owned for sender
       uint256 updatedId = _owned[from][_owned[from].length - 1];
-      _owned[from][_ownedIndex[amountOrId]] = updatedId;
+      _owned[from][_ownedIndex[id]] = updatedId;
       // pop
       _owned[from].pop();
       // update index for the moved id
-      _ownedIndex[updatedId] = _ownedIndex[amountOrId];
+      _ownedIndex[updatedId] = _ownedIndex[id];
       // push token to to owned
-      _owned[to].push(amountOrId);
+      _owned[to].push(id);
       // update index for to owned
-      _ownedIndex[amountOrId] = _owned[to].length - 1;
+      _ownedIndex[id] = _owned[to].length - 1;
 
-      emit Transfer(from, to, amountOrId);
-      emit ERC20Transfer(from, to, _getUnit());
+      emit Transfer(from, to, id);
+      emit ERC20Transfer(from, to, units);
     } else {
+      // Intention is to transfer as ERC-20 token (value).
+      uint256 value = valueOrId;
       uint256 allowed = allowance[from][msg.sender];
 
-      if (allowed != type(uint256).max)
-        allowance[from][msg.sender] = allowed - amountOrId;
+      if (allowed != type(uint256).max) {
+        allowance[from][msg.sender] = allowed - value;
+      }
 
-      _transfer(from, to, amountOrId);
+      _transfer(from, to, value);
+      emit ERC721Transfer(from, to, value);
     }
   }
 
-  /// @notice Function for fractional transfers
+  /// @notice Function for ERC20 transfers
   function transfer(address to, uint256 amount) public virtual returns (bool) {
     return _transfer(msg.sender, to, amount);
   }
 
-  /// @notice Function for native transfers with contract support
+  /// @notice Function for ERC721 transfers with contract support
   function safeTransferFrom(
     address from,
     address to,
@@ -191,7 +205,7 @@ abstract contract ERC404 is IERC404, Ownable {
     }
   }
 
-  /// @notice Function for native transfers with contract support and callback data
+  /// @notice Function for ERC721 transfers with contract support and callback data
   function safeTransferFrom(
     address from,
     address to,
@@ -209,13 +223,12 @@ abstract contract ERC404 is IERC404, Ownable {
     }
   }
 
-  /// @notice Internal function for fractional transfers
+  /// @notice Internal function for ERC20 transfers
   function _transfer(
     address from,
     address to,
     uint256 amount
   ) internal returns (bool) {
-    uint256 unit = _getUnit();
     uint256 balanceBeforeSender = balanceOf[from];
     uint256 balanceBeforeReceiver = balanceOf[to];
 
@@ -227,29 +240,24 @@ abstract contract ERC404 is IERC404, Ownable {
 
     // Skip burn for certain addresses to save gas
     if (!whitelist[from]) {
-      uint256 tokens_to_burn = (balanceBeforeSender / unit) -
-        (balanceOf[from] / unit);
-      for (uint256 i = 0; i < tokens_to_burn; i++) {
+      uint256 tokensToBurn = (balanceBeforeSender / units) -
+        (balanceOf[from] / units);
+      for (uint256 i = 0; i < tokensToBurn; i++) {
         _burn(from);
       }
     }
 
     // Skip minting for certain addresses to save gas
     if (!whitelist[to]) {
-      uint256 tokens_to_mint = (balanceOf[to] / unit) -
-        (balanceBeforeReceiver / unit);
-      for (uint256 i = 0; i < tokens_to_mint; i++) {
+      uint256 tokensToMint = (balanceOf[to] / units) -
+        (balanceBeforeReceiver / units);
+      for (uint256 i = 0; i < tokensToMint; i++) {
         _mint(to);
       }
     }
 
     emit ERC20Transfer(from, to, amount);
     return true;
-  }
-
-  // Internal utility logic
-  function _getUnit() internal view returns (uint256) {
-    return 10 ** decimals;
   }
 
   function _mint(address to) internal virtual {
@@ -286,6 +294,7 @@ abstract contract ERC404 is IERC404, Ownable {
     delete getApproved[id];
 
     emit Transfer(from, address(0), id);
+    emit ERC721Transfer(from, address(0), id);
   }
 
   function _setNameSymbol(string memory _name, string memory _symbol) internal {
