@@ -75,7 +75,7 @@ abstract contract ERC404 is IERC404, Ownable {
   function ownerOf(uint256 id) public view virtual returns (address nftOwner) {
     // Don't allow checking the owner of a token that hasn't been minted.
     if (id > minted) {
-        revert InvalidId();
+      revert InvalidId();
     }
 
     nftOwner = _ownerOf[id];
@@ -248,7 +248,7 @@ abstract contract ERC404 is IERC404, Ownable {
       uint256 tokensToBurn = (balanceBeforeSender / units) -
         (balanceOf[from] / units);
       for (uint256 i = 0; i < tokensToBurn; i++) {
-        _burn(from);
+        _burnERC721(from);
       }
     }
 
@@ -257,7 +257,7 @@ abstract contract ERC404 is IERC404, Ownable {
       uint256 tokensToMint = (balanceOf[to] / units) -
         (balanceBeforeReceiver / units);
       for (uint256 i = 0; i < tokensToMint; i++) {
-        _mint(to);
+        _mintERC721(to);
       }
     }
 
@@ -266,7 +266,7 @@ abstract contract ERC404 is IERC404, Ownable {
     return true;
   }
 
-  function _mint(address to) internal virtual {
+  function _mintERC721(address to) internal virtual {
     if (to == address(0)) {
       revert InvalidRecipient();
     }
@@ -289,7 +289,7 @@ abstract contract ERC404 is IERC404, Ownable {
     emit ERC721Transfer(address(0), to, id);
   }
 
-  function _burn(address from) internal virtual {
+  function _burnERC721(address from) internal virtual {
     if (from == address(0)) {
       revert InvalidSender();
     }
