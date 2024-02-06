@@ -176,6 +176,7 @@ abstract contract ERC404 is IERC404, Ownable {
 
       emit Transfer(from, to, id);
       emit ERC721Transfer(from, to, id);
+      emit Transfer(from, to, units);
       emit ERC20Transfer(from, to, units);
     } else {
       // Intention is to transfer as ERC-20 token (value).
