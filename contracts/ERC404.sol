@@ -24,7 +24,7 @@ abstract contract ERC404 is IERC404, Ownable {
   uint256 public immutable maxTotalSupply;
 
   /// @dev Total supply in ERC20 representation
-  uint256 public immutable totalSupply;
+  uint256 public totalSupply;
 
   /// @dev Current mint counter, monotonically increasing to ensure accurate ownership
   uint256 public minted;
