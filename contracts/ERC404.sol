@@ -132,8 +132,8 @@ abstract contract ERC404 is IERC404, Ownable {
     uint256 valueOrId
   ) public virtual {
     if (valueOrId <= minted) {
-      uint256 id = valueOrId;
       // Intention is to transfer as ERC-721 token (id).
+      uint256 id = valueOrId;
       if (from != _ownerOf[id]) {
         revert InvalidSender();
       }
