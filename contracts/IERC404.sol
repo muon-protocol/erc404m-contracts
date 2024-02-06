@@ -31,6 +31,7 @@ interface IERC404 {
   );
 
   error NotFound();
+  error InvalidId();
   error AlreadyExists();
   error InvalidRecipient();
   error InvalidSender();

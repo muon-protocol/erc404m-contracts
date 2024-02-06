@@ -73,6 +73,7 @@ abstract contract ERC404 is IERC404, Ownable {
 
   /// @notice Function to find owner of a given ERC721 token
   function ownerOf(uint256 id) public view virtual returns (address nftOwner) {
+    // Don't allow checking the owner of a token that hasn't been minted.
     if (id > minted) {
         revert InvalidId();
     }
