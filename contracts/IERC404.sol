@@ -37,6 +37,7 @@ interface IERC404 {
   error InvalidSender();
   error UnsafeRecipient();
   error Unauthorized();
+  error MaxSupplyReached();
 
   function setWhitelist(address target, bool state) external;
   function ownerOf(uint256 id) external view returns (address owner);

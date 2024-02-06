@@ -20,6 +20,9 @@ abstract contract ERC404 is IERC404, Ownable {
   /// @dev Units for ERC20 representation
   uint256 public immutable units;
 
+  /// @dev Max supply for ERC20 representation
+  uint256 public immutable maxTotalSupply;
+
   /// @dev Total supply in ERC20 representation
   uint256 public immutable totalSupply;
 
@@ -56,14 +59,14 @@ abstract contract ERC404 is IERC404, Ownable {
     string memory _name,
     string memory _symbol,
     uint8 _decimals,
-    uint256 _totalERC721Supply,
+    uint256 _maxTotalERC721Supply,
     address _owner
   ) Ownable(_owner) {
     name = _name;
     symbol = _symbol;
     decimals = _decimals;
     units = 10 ** decimals;
-    totalSupply = _totalERC721Supply * units;
+    maxTotalSupply = _totalERC721Supply * units;
   }
 
   /// @notice Initialization function to set pairs / etc, saving gas by avoiding mint / burn on unnecessary targets
@@ -267,6 +270,29 @@ abstract contract ERC404 is IERC404, Ownable {
     emit Transfer(from, to, value);
     emit ERC20Transfer(from, to, value);
     return true;
+  }
+
+  /// @notice Internal function for ERC20 minting
+  /// @dev This function will allow minting of new ERC20s up to the maxTotalSupply. Its intended use is for minting the initial supply, typically to the deployer/owner, which can then be added as liquidity to a DEX.
+  function _mintERC20Only(address to, uint256 value) internal virtual {
+    if (to == address(0)) {
+      revert InvalidRecipient();
+    }
+
+    // Any tokens minted using this method will not be paired with corresponding ERC721s, so the address must be on the whitelist to avoid reverts on future transfers.
+    if (!whitelist[to]) {
+      revert NotWhitelisted();
+    }
+
+    if (totalSupply + value > maxTotalSupply) {
+      revert MaxSupplyReached();
+    }
+
+    balanceOf[to] += value;
+    totalSupply += value;
+
+    emit Transfer(address(0), to, value);
+    emit ERC20Transfer(address(0), to, value);
   }
 
   function _mintERC721(address to) internal virtual {
