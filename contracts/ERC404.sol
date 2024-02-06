@@ -72,10 +72,14 @@ abstract contract ERC404 is IERC404, Ownable {
   }
 
   /// @notice Function to find owner of a given ERC721 token
-  function ownerOf(uint256 id) public view virtual returns (address owner) {
-    owner = _ownerOf[id];
+  function ownerOf(uint256 id) public view virtual returns (address nftOwner) {
+    if (id > minted) {
+        revert InvalidId();
+    }
 
-    if (owner == address(0)) {
+    nftOwner = _ownerOf[id];
+
+    if (nftOwner == address(0)) {
       revert NotFound();
     }
   }
@@ -84,7 +88,7 @@ abstract contract ERC404 is IERC404, Ownable {
   function tokenURI(uint256 id) public view virtual returns (string memory);
 
   /// @notice Function for token approvals
-  /// @dev This function assumes id / ERC721 if amount less than or equal to current max id
+  /// @dev This function assumes id / ERC721 if value less than or equal to current max id
   function approve(
     address spender,
     uint256 valueOrId
@@ -121,7 +125,7 @@ abstract contract ERC404 is IERC404, Ownable {
   }
 
   /// @notice Function for mixed transfers
-  /// @dev This function assumes id / ERC721 if amount less than or equal to current max id
+  /// @dev This function assumes id / ERC721 if value less than or equal to current max id
   function transferFrom(
     address from,
     address to,
@@ -168,6 +172,7 @@ abstract contract ERC404 is IERC404, Ownable {
       _ownedIndex[id] = _owned[to].length - 1;
 
       emit Transfer(from, to, id);
+      emit ERC721Transfer(from, to, id);
       emit ERC20Transfer(from, to, units);
     } else {
       // Intention is to transfer as ERC-20 token (value).
@@ -179,13 +184,12 @@ abstract contract ERC404 is IERC404, Ownable {
       }
 
       _transfer(from, to, value);
-      emit ERC721Transfer(from, to, value);
     }
   }
 
   /// @notice Function for ERC20 transfers
-  function transfer(address to, uint256 amount) public virtual returns (bool) {
-    return _transfer(msg.sender, to, amount);
+  function transfer(address to, uint256 value) public virtual returns (bool) {
+    return _transfer(msg.sender, to, value);
   }
 
   /// @notice Function for ERC721 transfers with contract support
@@ -227,15 +231,15 @@ abstract contract ERC404 is IERC404, Ownable {
   function _transfer(
     address from,
     address to,
-    uint256 amount
+    uint256 value
   ) internal returns (bool) {
     uint256 balanceBeforeSender = balanceOf[from];
     uint256 balanceBeforeReceiver = balanceOf[to];
 
-    balanceOf[from] -= amount;
+    balanceOf[from] -= value;
 
     unchecked {
-      balanceOf[to] += amount;
+      balanceOf[to] += value;
     }
 
     // Skip burn for certain addresses to save gas
@@ -256,7 +260,8 @@ abstract contract ERC404 is IERC404, Ownable {
       }
     }
 
-    emit ERC20Transfer(from, to, amount);
+    emit Transfer(from, to, value);
+    emit ERC20Transfer(from, to, value);
     return true;
   }
 
@@ -280,6 +285,7 @@ abstract contract ERC404 is IERC404, Ownable {
     _ownedIndex[id] = _owned[to].length - 1;
 
     emit Transfer(address(0), to, id);
+    emit ERC721Transfer(address(0), to, id);
   }
 
   function _burn(address from) internal virtual {
@@ -295,10 +301,5 @@ abstract contract ERC404 is IERC404, Ownable {
 
     emit Transfer(from, address(0), id);
     emit ERC721Transfer(from, address(0), id);
-  }
-
-  function _setNameSymbol(string memory _name, string memory _symbol) internal {
-    name = _name;
-    symbol = _symbol;
   }
 }
