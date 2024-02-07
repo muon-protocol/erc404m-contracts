@@ -36,8 +36,13 @@ interface IERC404 {
   error InvalidRecipient();
   error InvalidSender();
   error UnsafeRecipient();
+  error NotWhitelisted();
   error Unauthorized();
-  error MaxSupplyReached();
+  error InsufficientAllowance();
+  error InsufficientBalance();
+  error MaxERC20SupplyReached();
+  error MaxERC721SupplyReached();
+  error DecimalsTooLow();
 
   function setWhitelist(address target, bool state) external;
   function ownerOf(uint256 id) external view returns (address owner);
