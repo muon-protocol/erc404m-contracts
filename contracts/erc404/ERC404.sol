@@ -144,23 +144,23 @@ abstract contract ERC404 is IERC404 {
     emit ApprovalForAll(msg.sender, operator, approved);
   }
 
-  /// @notice Function for mixed transfers
+  /// @notice Function for mixed transfers.
   /// @dev This function assumes id ERC721 if value less than or equal to current max id
   function transferFrom(
     address from,
     address to,
     uint256 valueOrId
   ) public virtual {
+    // Prevent burning tokens to the 0 address.
+    if (to == address(0)) {
+      revert InvalidRecipient();
+    }
+
     if (valueOrId <= minted) {
       // Intention is to transfer as ERC-721 token (id).
       uint256 id = valueOrId;
       if (from != _ownerOf[id]) {
         revert InvalidSender();
-      }
-
-      // _transferERC20 does not check for mints from 0x0 or burns to 0x0, so we need to check here. In reality, we don't need to check for mints from 0x0 because msg.sender would have to be 0x0 or the operator would have to be approved for 0x0 to mint, but we'll check for it anyway.
-      if (to == address(0) || from == address(0)) {
-        revert InvalidRecipient();
       }
 
       // Check that the operator is approved for the transfer.
@@ -195,6 +195,11 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Function for ERC20 transfers
   function transfer(address to, uint256 value) public virtual returns (bool) {
+    // Prevent burning tokens to the 0 address.
+    if (to == address(0)) {
+      revert InvalidRecipient();
+    }
+
     return _transfer(msg.sender, to, value);
   }
 
@@ -235,7 +240,7 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice This is the lowest level ERC20 transfer function, which should be used for both normal ERC20 transfers as well as minting.
   /// @dev Note that this function does not limit transfers to/from the 0 address.
-  function _transferERC20(address from, address to, uint256 value) internal {
+  function _transferERC20(address from, address to, uint256 value) internal virtual {
     // Minting is a special case for which we should not check the balance of the sender, and we should increment the total supply.
     if (from == address(0)) {
       if (totalSupply + value > maxTotalSupplyERC20) {
@@ -299,7 +304,7 @@ abstract contract ERC404 is IERC404 {
     address from,
     address to,
     uint256 value
-  ) internal returns (bool) {
+  ) internal virtual returns (bool) {
     uint256 erc20BalanceBeforeSender = erc20BalanceOf(from);
     uint256 erc20BalanceBeforeReceiver = erc20BalanceOf(to);
 
@@ -436,7 +441,7 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Initialization function to set pairs / etc, saving gas by avoiding mint / burn on unnecessary targets
-  function _setWhitelist(address target, bool state) internal {
+  function _setWhitelist(address target, bool state) internal virtual {
     whitelist[target] = state;
   }
 }
