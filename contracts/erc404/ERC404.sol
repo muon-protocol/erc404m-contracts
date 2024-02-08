@@ -230,7 +230,7 @@ abstract contract ERC404 is IERC404 {
     }
   }
 
-  // TODO: consider how minting and burning should be handled.
+  // TODO: consider how minting and burning should be handled. This should be the lowest level ERC20 transfer function that does not limit transfers to/from the 0 address.
   function _transferERC20(address from, address to, uint256 value) internal {
     if (from == address(0) || to == address(0)) {
       revert InvalidRecipient();
@@ -251,28 +251,31 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Consolidated record keeping function for transferring ERC721s.
-  /// @dev Assign the token to the new owner, and remove from the old owner.
+  /// @dev Assign the token to the new owner, and remove from the old owner. This function also supports transfers from the 0x0 address (mints).
   function _transferERC721(
     address from,
     address to,
     uint256 id
   ) internal virtual {
+    // If this is not a mint, handle record keeping for transfer from previous owner.
+    if (from != address(0)) {
+      // On transfer of an NFT, any previous approval is reset.
+      delete getApproved[id];
+
+      // update _owned for sender
+      uint256 updatedId = _owned[from][_owned[from].length - 1];
+      _owned[from][_ownedIndex[id]] = updatedId;
+      // pop
+      _owned[from].pop();
+      // update index for the moved id
+      _ownedIndex[updatedId] = _ownedIndex[id];
+    }
+
+    // Update owner of the token to the new owner.
     _ownerOf[id] = to;
-
-    // On transfer of an NFT, any previous approval is reset.
-    delete getApproved[id];
-
-    // update _owned for sender
-    // Last
-    uint256 updatedId = _owned[from][_owned[from].length - 1];
-    _owned[from][_ownedIndex[id]] = updatedId;
-    // pop
-    _owned[from].pop();
-    // update index for the moved id
-    _ownedIndex[updatedId] = _ownedIndex[id];
-    // push token to to owned
+    // Push token onto the new owner's stack.
     _owned[to].push(id);
-    // update index for to owned
+    // Update index for new owner's stack.
     _ownedIndex[id] = _owned[to].length - 1;
 
     emit Transfer(from, to, id);
@@ -413,12 +416,8 @@ abstract contract ERC404 is IERC404 {
       revert AlreadyExists();
     }
 
-    _ownerOf[id] = to;
-    _owned[to].push(id);
-    _ownedIndex[id] = _owned[to].length - 1;
-
-    emit Transfer(nftOwner, to, id);
-    emit ERC721Transfer(nftOwner, to, id);
+    // Transfer the token to the recipient, either transferring from the contract's bank or minting.
+    _transferERC721(nftOwner, to, id);
   }
 
   /// @notice Internal function for ERC721 deposits to bank (this contract).
@@ -428,20 +427,14 @@ abstract contract ERC404 is IERC404 {
       revert InvalidSender();
     }
 
-    // Pull off the latest token added to the owner's stack (LIFO).
+    // Retrieve the latest token added to the owner's stack (LIFO).
     uint256 id = _owned[from][_owned[from].length - 1];
-    _owned[from].pop();
 
-    // Transfer ownership to this contract and place it into the queue (FIFO).
-    _ownerOf[id] = address(this);
-    // TODO: This doesn't update _owned like other erc721 transfers.
+    // Transfer the token to the contract.
+    _transferERC721(from, address(this), id);
+
+    // Record the token in the contract's bank queue.
     _storedERC721Ids.pushFront(bytes32(id));
-
-    // Always delete approvals on NFT transfers.
-    delete getApproved[id];
-
-    emit Transfer(from, address(this), id);
-    emit ERC721Transfer(from, address(this), id);
   }
 
   /// @notice Initialization function to set pairs / etc, saving gas by avoiding mint / burn on unnecessary targets
