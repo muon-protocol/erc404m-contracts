@@ -137,6 +137,24 @@ describe("ERC404", function () {
     }
   }
 
+  async function deployExampleERC404WithSomeTokensTransferredToRandomAddress() {
+    const f = await loadFixture(deployExampleERC404)
+
+    const targetAddress = f.randomAddresses[0]
+
+    // Transfer some tokens to a non-whitelisted wallet to generate the NFTs.
+    await f.contract
+      .connect(f.signers[0])
+      .transfer(targetAddress, 5n * f.deployConfig.units)
+
+    expect(await f.contract.minted()).to.equal(5n)
+
+    return {
+      ...f,
+      targetAddress,
+    }
+  }
+
   async function getBalances(contract: any, address: string) {
     return {
       erc20: await contract.erc20BalanceOf(address),
@@ -194,7 +212,44 @@ describe("ERC404", function () {
 
   describe.skip("#erc20BalanceOf", function () {})
 
-  describe.skip("#ownerOf", function () {})
+  describe("#ownerOf", function () {
+    context("Some tokens have been minted", function () {
+      it("Reverts if the token ID does not exist", async function () {
+        const f = await loadFixture(
+          deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+        )
+
+        await expect(f.contract.ownerOf(11n)).to.be.revertedWithCustomError(
+          f.contract,
+          "NotFound",
+        )
+      })
+
+      it("Reverts if the token ID is 0", async function () {
+        const f = await loadFixture(
+          deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+        )
+
+        await expect(f.contract.ownerOf(0n)).to.be.revertedWithCustomError(
+          f.contract,
+          "NotFound",
+        )
+      })
+
+      it("Returns the address of the owner of the token", async function () {
+        const f = await loadFixture(
+          deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+        )
+
+        // Transferred 5 full tokens from a whitelisted address to the target address (not whitelisted), which minted the first 5 NFTs.
+
+        // Expect the owner of the token to be the recipient
+        for (let i = 1n; i <= 5n; i++) {
+          expect(await f.contract.ownerOf(i)).to.equal(f.targetAddress)
+        }
+      })
+    })
+  })
 
   describe("Enforcement of max total supply limits", function () {
     it("Allows minting of the full supply of ERC20 + ERC721 tokens", async function () {
@@ -292,7 +347,7 @@ describe("ERC404", function () {
         .mintERC20(f.signers[1].address, value, true)
 
       // Check for ERC721Transfer mint events (from 0x0 to the recipient)
-      for (let i = 0n; i < nftQty; i++) {
+      for (let i = 1n; i <= nftQty; i++) {
         await expect(mintTx)
           .to.emit(f.contract, "ERC721Transfer")
           .withArgs(ethers.ZeroAddress, f.signers[1].address, i)
@@ -358,16 +413,16 @@ describe("ERC404", function () {
           fractionalValueToTransferERC20,
         )
 
-      // Expect token id 9 to be transferred to the contract's address (popping the last NFT from the sender's stack)
+      // Expect token id 10 to be transferred to the contract's address (popping the last NFT from the sender's stack)
       await expect(fractionalTransferTx)
         .to.emit(f.contract, "ERC721Transfer")
-        .withArgs(f.signers[1].address, f.contractAddress, 9n)
+        .withArgs(f.signers[1].address, f.contractAddress, 10n)
 
       // 10 tokens still minted, nothing changes there.
       expect(await f.contract.minted()).to.equal(10n)
 
-      // The owner of NFT 9 should be the contract's address
-      expect(await f.contract.ownerOf(9n)).to.equal(f.contractAddress)
+      // The owner of NFT 10 should be the contract's address
+      expect(await f.contract.ownerOf(10n)).to.equal(f.contractAddress)
 
       // The sender's NFT balance should be 9
       expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
@@ -400,7 +455,7 @@ describe("ERC404", function () {
         .transfer(f.signers[2].address, fractionalValueToTransferERC20)
 
       // The owner of NFT 9 should be the contract's address
-      expect(await f.contract.ownerOf(9n)).to.equal(f.contractAddress)
+      expect(await f.contract.ownerOf(10n)).to.equal(f.contractAddress)
 
       // The sender's NFT balance should be 9
       expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
@@ -439,7 +494,7 @@ describe("ERC404", function () {
       )
 
       // The owner of NFT 9 should be the original sender's address
-      expect(await f.contract.ownerOf(9n)).to.equal(f.signers[1].address)
+      expect(await f.contract.ownerOf(10n)).to.equal(f.signers[1].address)
 
       // The sender's NFT balance should be 10
       expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
@@ -689,6 +744,47 @@ describe("ERC404", function () {
       await expect(
         f.contract.connect(f.signers[0]).transfer(ethers.ZeroAddress, 1n),
       ).to.be.revertedWithCustomError(f.contract, "InvalidRecipient")
+    })
+  })
+
+  describe("#_setWhitelist", function () {
+    it("Allows the owner to add and remove addresses from the whitelist", async function () {
+      const f = await loadFixture(deployExampleERC404)
+
+      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(false)
+
+      // Add a random address to the whitelist
+      await f.contract
+        .connect(f.signers[0])
+        .setWhitelist(f.randomAddresses[1], true)
+      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(true)
+
+      // Remove the random address from the whitelist
+      await f.contract
+        .connect(f.signers[0])
+        .setWhitelist(f.randomAddresses[1], false)
+      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(false)
+    })
+
+    it("An address cannot be removed from the whitelist while it has an ERC-20 balance >= 1 full token.", async function () {
+      const f = await loadFixture(deployExampleERC404)
+
+      const targetAddress = f.randomAddresses[0]
+
+      // Transfer 1 full NFT worth of tokens to that address.
+      await f.contract
+        .connect(f.signers[0])
+        .transfer(targetAddress, f.deployConfig.units)
+
+      expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(1n)
+
+      // Add that address to the whitelist.
+      await f.contract.connect(f.signers[0]).setWhitelist(targetAddress, true)
+
+      // Attempt to remove the random address from the whitelist.
+      await expect(
+        f.contract.connect(f.signers[0]).setWhitelist(targetAddress, false),
+      ).to.be.revertedWithCustomError(f.contract, "CannotRemoveFromWhitelist")
     })
   })
 
