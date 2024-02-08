@@ -158,11 +158,12 @@ abstract contract ERC404 is IERC404 {
         revert InvalidSender();
       }
 
-      // TODO: Redundant, already in _transferERC20
-      if (to == address(0)) {
+      // _transferERC20 does not check for mints from 0x0 or burns to 0x0, so we need to check here. In reality, we don't need to check for mints from 0x0 because msg.sender would have to be 0x0 or the operator would have to be approved for 0x0 to mint, but we'll check for it anyway.
+      if (to == address(0) || from == address(0)) {
         revert InvalidRecipient();
       }
 
+      // Check that the operator is approved for the transfer.
       if (
         msg.sender != from &&
         !isApprovedForAll[from][msg.sender] &&
@@ -179,6 +180,7 @@ abstract contract ERC404 is IERC404 {
       uint256 value = valueOrId;
       uint256 allowed = allowance[from][msg.sender];
 
+      // Check that the operator has sufficient allowance.
       if (allowed != type(uint256).max) {
         if (allowed < value) {
           revert InsufficientAllowance();
@@ -231,18 +233,27 @@ abstract contract ERC404 is IERC404 {
     }
   }
 
-  // TODO: consider how minting and burning should be handled. This should be the lowest level ERC20 transfer function that does not limit transfers to/from the 0 address.
+  /// @notice This is the lowest level ERC20 transfer function, which should be used for both normal ERC20 transfers as well as minting.
+  /// @dev Note that this function does not limit transfers to/from the 0 address.
   function _transferERC20(address from, address to, uint256 value) internal {
-    if (from == address(0) || to == address(0)) {
-      revert InvalidRecipient();
+    // Minting is a special case for which we should not check the balance of the sender, and we should increment the total supply.
+    if (from == address(0)) {
+      if (totalSupply + value > maxTotalSupplyERC20) {
+        revert MaxERC20SupplyReached();
+      }
+      unchecked {
+        totalSupply += value;
+      }
+    } else {
+      // For transfers not from the 0x0 address, check for insufficient balance.
+      if (balanceOf[from] < value) {
+        revert InsufficientBalance();
+      }
+      // Deduct value from sender's balance.
+      balanceOf[from] -= value;
     }
 
-    if (balanceOf[from] < value) {
-      revert InsufficientBalance();
-    }
-
-    balanceOf[from] -= value;
-
+    // Update the recipient's balance.
     unchecked {
       balanceOf[to] += value;
     }
@@ -289,8 +300,8 @@ abstract contract ERC404 is IERC404 {
     address to,
     uint256 value
   ) internal returns (bool) {
-    uint256 balanceBeforeSender = balanceOf[from];
-    uint256 balanceBeforeReceiver = balanceOf[to];
+    uint256 erc20BalanceBeforeSender = erc20BalanceOf(from);
+    uint256 erc20BalanceBeforeReceiver = erc20BalanceOf(to);
 
     _transferERC20(from, to, value);
 
@@ -302,14 +313,14 @@ abstract contract ERC404 is IERC404 {
       // Case 2) The sender is whitelisted, but the recipient is not. Contract should not attempt to transfer NFTs from the sender, but the recipient should receive NFTs from the bank/minted.
       // Only cares about whole number increments.
       uint256 tokensToRetrieveOrMint = (balanceOf[to] / units) -
-        (balanceBeforeReceiver / units);
+        (erc20BalanceBeforeReceiver / units);
       for (uint256 i = 0; i < tokensToRetrieveOrMint; i++) {
         _retrieveOrMintERC721(to);
       }
     } else if (whitelist[to]) {
       // Case 3) The sender is not whitelisted, but the recipient is. Contract should attempt to withdraw and store NFTs from the sender, but the recipient should not receive NFTs from the bank/minted.
       // Only cares about whole number increments.
-      uint256 tokensToWithdrawAndStore = (balanceBeforeSender / units) -
+      uint256 tokensToWithdrawAndStore = (erc20BalanceBeforeSender / units) -
         (balanceOf[from] / units);
       for (uint256 i = 0; i < tokensToWithdrawAndStore; i++) {
         _withdrawAndStoreERC721(from);
@@ -337,16 +348,16 @@ abstract contract ERC404 is IERC404 {
       uint256 fractionalAmount = value % units;
 
       if (
-        (balanceBeforeSender - fractionalAmount) / units <
-        (balanceBeforeSender / units)
+        (erc20BalanceBeforeSender - fractionalAmount) / units <
+        (erc20BalanceBeforeSender / units)
       ) {
         _withdrawAndStoreERC721(from);
       }
 
       // Check if the receive causes the receiver to gain a whole new token that should be represented by an NFT due to receiving a fractional part that completes a whole token.
       if (
-        (balanceBeforeReceiver + fractionalAmount) / units >
-        (balanceBeforeReceiver / units)
+        (erc20BalanceBeforeReceiver + fractionalAmount) / units >
+        (erc20BalanceBeforeReceiver / units)
       ) {
         _retrieveOrMintERC721(to);
       }
@@ -362,21 +373,7 @@ abstract contract ERC404 is IERC404 {
     uint256 value,
     bool mintCorrespondingERC721s_
   ) internal virtual {
-    if (to == address(0) || to == address(this)) {
-      revert InvalidRecipient();
-    }
-
-    if (totalSupply + value > maxTotalSupplyERC20) {
-      revert MaxERC20SupplyReached();
-    }
-
-    unchecked {
-      balanceOf[to] += value;
-      totalSupply += value;
-    }
-
-    emit Transfer(address(0), to, value);
-    emit ERC20Transfer(address(0), to, value);
+    _transferERC20(address(0), to, value);
 
     // If mintCorrespondingERC721s_ is true, mint the corresponding ERC721s. This uses _retrieveOrMintERC721, which will first try to pull from the bank, and if the bank is empty, it will mint a new token.
     if (mintCorrespondingERC721s_) {
