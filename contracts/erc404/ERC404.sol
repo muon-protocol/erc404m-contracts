@@ -222,7 +222,7 @@ abstract contract ERC404 is IERC404 {
       // Transferring ERC20s directly requires the _transfer function.
       _transfer(msg.sender, to_, value);
     }
-    
+
     return true;
   }
 
