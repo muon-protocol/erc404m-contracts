@@ -261,7 +261,7 @@ abstract contract ERC404 is IERC404 {
   /// @notice This is the lowest level ERC20 transfer function, which should be used for both normal ERC20 transfers as well as minting.
   /// @dev Note that this function does not limit transfers to/from the 0 address.
   function _transferERC20(address from, address to, uint256 value) internal virtual {
-    // Minting is a special case for which we should not check the balance of the sender, and we should increment the total supply.
+    // Minting is a special case for which we should not check the balance of the sender, and we should increase the total supply.
     if (from == address(0)) {
       if (totalSupply + value > maxTotalSupplyERC20) {
         revert MaxERC20SupplyReached();
