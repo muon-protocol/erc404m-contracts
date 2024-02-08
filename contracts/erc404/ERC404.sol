@@ -257,7 +257,7 @@ abstract contract ERC404 is Context, IERC404 {
     address from,
     address to,
     uint256 id
-  ) public virtual {
+  ) internal virtual {
     _ownerOf[id] = to;
 
     // On transfer of an NFT, any previous approval is reset.
