@@ -698,20 +698,22 @@ describe("ERC404", function () {
     it("Allows the owner to add and remove addresses from the whitelist", async function () {
       const f = await loadFixture(deployExampleERC404)
 
+      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(false)
+
       // Add a random address to the whitelist
       await f.contract
         .connect(f.signers[0])
-        .setWhitelist(f.randomAddresses[0], true)
-      expect(await f.contract.whitelist(f.randomAddresses[0])).to.equal(true)
+        .setWhitelist(f.randomAddresses[1], true)
+      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(true)
 
       // Remove the random address from the whitelist
       await f.contract
         .connect(f.signers[0])
-        .setWhitelist(f.randomAddresses[0], false)
-      expect(await f.contract.whitelist(f.randomAddresses[0])).to.equal(false)
+        .setWhitelist(f.randomAddresses[1], false)
+      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(false)
     })
 
-    it("An address cannot be removed from the whitelist while it has an NFT balance >= 1", async function () {
+    it("An address cannot be removed from the whitelist while it has an ERC-20 balance >= 1 full token.", async function () {
       const f = await loadFixture(deployExampleERC404)
 
       const targetAddress = f.randomAddresses[0]

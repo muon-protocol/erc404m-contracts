@@ -32,7 +32,7 @@ abstract contract ERC404 is IERC404 {
   /// @dev Total supply in ERC-20 representation
   uint256 public totalSupply;
 
-  /// @dev Current mint counter, monotonically increasing to ensure accurate ownership
+  /// @dev Current mint counter which also represents the highest minted id, monotonically increasing to ensure accurate ownership
   uint256 public minted;
 
   /// @dev Balance of user in ERC-20 representation
