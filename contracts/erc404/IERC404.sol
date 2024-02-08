@@ -44,14 +44,13 @@ interface IERC404 {
   error MaxERC721SupplyReached();
   error DecimalsTooLow();
 
-  function setWhitelist(address target, bool state) external;
-  function ownerOf(uint256 id) external view returns (address owner);
-  function tokenURI(uint256 id) external view returns (string memory);
-  function approve(address spender, uint256 valueOrId) external returns (bool);
-  function setApprovalForAll(address operator, bool approved) external;
-  function transferFrom(address from, address to, uint256 valueOrId) external;
-  function transfer(address to, uint256 amount) external returns (bool);
-  function safeTransferFrom(address from, address to, uint256 id) external;
+  function ownerOf(uint256 id_) external view returns (address nftOwner);
+  function tokenURI(uint256 id_) external view returns (string memory);
+  function approve(address spender_, uint256 valueOrId) external returns (bool);
+  function setApprovalForAll(address operator_, bool approved_) external;
+  function transferFrom(address from_, address to, uint256 valueOrId_) external;
+  function transfer(address to_, uint256 amount_) external returns (bool);
+  function safeTransferFrom(address from_, address to_, uint256 id_) external;
   function safeTransferFrom(
     address from,
     address to,
