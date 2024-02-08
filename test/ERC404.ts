@@ -137,6 +137,24 @@ describe("ERC404", function () {
     }
   }
 
+  async function deployExampleERC404WithSomeTokensTransferredToRandomAddress() {
+    const f = await loadFixture(deployExampleERC404)
+
+    const targetAddress = f.randomAddresses[0]
+
+    // Transfer some tokens to a non-whitelisted wallet to generate the NFTs.
+    await f.contract
+      .connect(f.signers[0])
+      .transfer(targetAddress, 5n * f.deployConfig.units)
+
+    expect(await f.contract.minted()).to.equal(5n)
+
+    return {
+      ...f,
+      targetAddress,
+    }
+  }
+
   async function getBalances(contract: any, address: string) {
     return {
       erc20: await contract.erc20BalanceOf(address),
@@ -197,7 +215,9 @@ describe("ERC404", function () {
   describe("#ownerOf", function () {
     context("Some tokens have been minted", function () {
       it("Reverts if the token ID does not exist", async function () {
-        const f = await loadFixture(deployExampleERC404)
+        const f = await loadFixture(
+          deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+        )
 
         await expect(f.contract.ownerOf(11n)).to.be.revertedWithCustomError(
           f.contract,
@@ -206,12 +226,27 @@ describe("ERC404", function () {
       })
 
       it("Reverts if the token ID is 0", async function () {
-        const f = await loadFixture(deployExampleERC404)
+        const f = await loadFixture(
+          deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+        )
 
         await expect(f.contract.ownerOf(0n)).to.be.revertedWithCustomError(
           f.contract,
           "NotFound",
         )
+      })
+
+      it("Returns the address of the owner of the token", async function () {
+        const f = await loadFixture(
+          deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+        )
+
+        // Transferred 5 full tokens from a whitelisted address to the target address (not whitelisted), which minted the first 5 NFTs.
+
+        // Expect the owner of the token to be the recipient
+        for (let i = 1n; i <= 5n; i++) {
+          expect(await f.contract.ownerOf(i)).to.equal(f.targetAddress)
+        }
       })
     })
   })
