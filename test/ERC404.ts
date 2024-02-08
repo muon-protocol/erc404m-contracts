@@ -43,6 +43,7 @@ describe("ERC404", function () {
         maxTotalSupplyERC721,
         maxTotalSupplyERC20,
         initialOwner,
+        initialMintRecipient,
       },
       randomAddresses,
     }
@@ -95,6 +96,52 @@ describe("ERC404", function () {
       erc721: await contract.erc721BalanceOf(address),
     }
   }
+
+  describe("#constructor", function () {
+    it("Initializes the contract with the expected values", async function () {
+      const f = await loadFixture(deploy)
+
+      expect(await f.contract.name()).to.equal(f.deployConfig.name)
+      expect(await f.contract.symbol()).to.equal(f.deployConfig.symbol)
+      expect(await f.contract.decimals()).to.equal(f.deployConfig.decimals)
+      expect(await f.contract.maxTotalSupplyERC721()).to.equal(
+        f.deployConfig.maxTotalSupplyERC721,
+      )
+      expect(await f.contract.owner()).to.equal(f.deployConfig.initialOwner)
+      expect(await f.contract.maxTotalSupplyERC20()).to.equal(
+        f.deployConfig.maxTotalSupplyERC20,
+      )
+    })
+
+    it("Mints the initial supply of tokens to the initial mint recipient", async function () {
+      const f = await loadFixture(deploy)
+
+      // Expect full supply of ERC20 tokens to be minted to the initial recipient.
+      expect(
+        await f.contract.erc20BalanceOf(f.deployConfig.initialMintRecipient),
+      ).to.equal(f.deployConfig.maxTotalSupplyERC20)
+      // Expect 0 ERC721 tokens to be minted to the initial recipient, since 1) the user is on the whitelist and 2) the supply is minted using _mintERC20 with mintCorrespondingERC721s_ set to false.
+      expect(
+        await f.contract.erc721BalanceOf(f.deployConfig.initialMintRecipient),
+      ).to.equal(0n)
+
+      // NFT minted count should be 0.
+      expect(await f.contract.minted()).to.equal(0n)
+
+      // Total supply of ERC20s tokens should be equal to the initial mint recipient's balance.
+      expect(await f.contract.totalSupply()).to.equal(
+        f.deployConfig.maxTotalSupplyERC20,
+      )
+    })
+
+    it("Initializes the whitelist with the initial mint recipient", async function () {
+      const f = await loadFixture(deploy)
+
+      expect(
+        await f.contract.whitelist(f.deployConfig.initialMintRecipient),
+      ).to.equal(true)
+    })
+  })
 
   describe("ERC20 token transfer logic for triggering ERC721 transfers", function () {
     context(
