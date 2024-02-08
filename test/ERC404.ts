@@ -332,8 +332,8 @@ describe("ERC404", function () {
 
       expect(await f.contract.minted()).to.equal(10n)
 
-      // TODO The contract's NFT balance should be 0
-      // expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(0n)
+      // The contract's NFT balance should be 0
+      expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(0n)
 
       // Move a fraction of a token to another address to break apart a full NFT.
 
@@ -374,8 +374,8 @@ describe("ERC404", function () {
         9n,
       )
 
-      // TODO The contract's NFT balance should be 1
-      // expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(1n)
+      // The contract's NFT balance should be 1
+      expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(1n)
     })
 
     it("Retrieves ERC721s from the contract's bank when the contract's bank holds NFTs and the user regains a full token", async function () {
@@ -407,8 +407,8 @@ describe("ERC404", function () {
         9n,
       )
 
-      // TODO The contract's NFT balance should be 1
-      // expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(1n)
+      // The contract's NFT balance should be 1
+      expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(1n)
 
       // Transfer the fractional portion needed to regain a full token back to the original sender
       const regainFullTokenTx = await f.contract
@@ -446,8 +446,8 @@ describe("ERC404", function () {
         10n,
       )
 
-      // TODO The contract's NFT balance should be 0
-      // expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(0n)
+      // The contract's NFT balance should be 0
+      expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(0n)
     })
   })
 
