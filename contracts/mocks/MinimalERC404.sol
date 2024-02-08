@@ -15,11 +15,13 @@ contract MinimalERC404 is Ownable, ERC404 {
   )
     ERC404(name_, symbol_, decimals_, maxTotalSupplyERC721_)
     Ownable(initialOwner_)
-  {
-    
-  }
+  {}
 
-  function mintERC20(address account_, uint256 value_, bool mintCorrespondingERC721s_) external onlyOwner {
+  function mintERC20(
+    address account_,
+    uint256 value_,
+    bool mintCorrespondingERC721s_
+  ) external onlyOwner {
     _mintERC20(account_, value_, mintCorrespondingERC721s_);
   }
 

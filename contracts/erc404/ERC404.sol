@@ -116,9 +116,7 @@ abstract contract ERC404 is IERC404 {
       uint256 id = valueOrId;
       address nftOwner = _ownerOf[id];
 
-      if (
-        msg.sender != nftOwner && !isApprovedForAll[nftOwner][msg.sender]
-      ) {
+      if (msg.sender != nftOwner && !isApprovedForAll[nftOwner][msg.sender]) {
         revert Unauthorized();
       }
 
@@ -196,8 +194,11 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Function for mixed transfers.
   /// @dev This function assumes the operator is attempting to transfer an ERC721 if valueOrId is less than or equal to current max id.
-  function transfer(address to, uint256 valueOrId) public virtual returns (bool) {
-   // Prevent burning tokens to the 0 address.
+  function transfer(
+    address to,
+    uint256 valueOrId
+  ) public virtual returns (bool) {
+    // Prevent burning tokens to the 0 address.
     if (to == address(0)) {
       revert InvalidRecipient();
     }
@@ -210,7 +211,7 @@ abstract contract ERC404 is IERC404 {
         revert Unauthorized();
       }
 
-      // Transfer 1 * units ERC20 and 1 ERC721 token. 
+      // Transfer 1 * units ERC20 and 1 ERC721 token.
       // This this path is used to ensure the exact ERC721 specified is transferred.
       _transferERC20(msg.sender, to, units);
       _transferERC721(msg.sender, to, id);
@@ -260,7 +261,11 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice This is the lowest level ERC20 transfer function, which should be used for both normal ERC20 transfers as well as minting.
   /// @dev Note that this function does not limit transfers to/from the 0 address.
-  function _transferERC20(address from, address to, uint256 value) internal virtual {
+  function _transferERC20(
+    address from,
+    address to,
+    uint256 value
+  ) internal virtual {
     // Minting is a special case for which we should not check the balance of the sender, and we should increase the total supply.
     if (from == address(0)) {
       if (totalSupply + value > maxTotalSupplyERC20) {
@@ -392,7 +397,7 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Internal function for ERC20 minting
-  /// @dev This function will allow minting of new ERC20s up to the maxTotalSupplyERC20. If mintCorrespondingERC721s_ is true, it will also mint the corresponding ERC721s. 
+  /// @dev This function will allow minting of new ERC20s up to the maxTotalSupplyERC20. If mintCorrespondingERC721s_ is true, it will also mint the corresponding ERC721s.
   /// Note that you cannot mint to the zero address (you can't mint and immediately burn in the same transfer).
   function _mintERC20(
     address to,
