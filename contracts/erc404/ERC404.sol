@@ -84,6 +84,7 @@ abstract contract ERC404 is IERC404 {
   function ownerOf(uint256 id) public view virtual returns (address nftOwner) {
     nftOwner = _ownerOf[id];
 
+    // TODO: could add check for id < minted to ensure it's a valid id
     if (nftOwner == address(0)) {
       revert NotFound();
     }
