@@ -224,7 +224,7 @@ abstract contract ERC404 is IERC404 {
     }
   }
 
-  /// @notice Function for ERC721 transfers with contract support
+  /// @notice Function for ERC721 transfers with contract support.
   function safeTransferFrom(
     address from,
     address to,
@@ -241,7 +241,7 @@ abstract contract ERC404 is IERC404 {
     }
   }
 
-  /// @notice Function for ERC721 transfers with contract support and callback data
+  /// @notice Function for ERC721 transfers with contract support and callback data.
   function safeTransferFrom(
     address from,
     address to,
@@ -260,7 +260,7 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice This is the lowest level ERC20 transfer function, which should be used for both normal ERC20 transfers as well as minting.
-  /// @dev Note that this function does not limit transfers to/from the 0 address.
+  /// Note that this function allows transfers to and from 0x0.
   function _transferERC20(
     address from,
     address to,
@@ -293,7 +293,8 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Consolidated record keeping function for transferring ERC721s.
-  /// @dev Assign the token to the new owner, and remove from the old owner. This function also supports transfers from the 0x0 address (mints).
+  /// @dev Assign the token to the new owner, and remove from the old owner. 
+  /// Note that this function allows transfers to and from 0x0.
   function _transferERC721(
     address from,
     address to,
