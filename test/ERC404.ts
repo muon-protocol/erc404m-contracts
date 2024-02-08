@@ -3,7 +3,7 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers"
 import { ethers } from "hardhat"
 
 describe("ERC404", function () {
-  async function deploy() {
+  async function deployExampleERC404() {
     const signers = await ethers.getSigners()
     const factory = await ethers.getContractFactory("ExampleERC404")
 
@@ -49,8 +49,51 @@ describe("ERC404", function () {
     }
   }
 
-  async function deployWithTokensInSecondSigner() {
-    const f = await loadFixture(deploy)
+  async function deployBasicERC404() {
+    const signers = await ethers.getSigners()
+    const factory = await ethers.getContractFactory("BasicERC404")
+
+    const name = "Example"
+    const symbol = "EXM"
+    const decimals = 18n
+    const units = 10n ** decimals
+    const maxTotalSupplyERC721 = 100n
+    const maxTotalSupplyERC20 = maxTotalSupplyERC721 * units
+    const initialOwner = signers[0].address
+
+    const contract = await factory.deploy(
+      name,
+      symbol,
+      decimals,
+      maxTotalSupplyERC721,
+      initialOwner,
+    )
+    await contract.waitForDeployment()
+
+    // Generate 10 random addresses for experiments.
+    const randomAddresses = Array.from(
+      { length: 10 },
+      () => ethers.Wallet.createRandom().address,
+    )
+
+    return {
+      contract,
+      signers,
+      deployConfig: {
+        name,
+        symbol,
+        decimals,
+        units,
+        maxTotalSupplyERC721,
+        maxTotalSupplyERC20,
+        initialOwner,
+      },
+      randomAddresses,
+    }
+  }
+
+  async function deployExampleERC404WithTokensInSecondSigner() {
+    const f = await loadFixture(deployExampleERC404)
     const from = f.signers[1]
     const to = f.signers[2]
 
@@ -99,7 +142,7 @@ describe("ERC404", function () {
 
   describe("#constructor", function () {
     it("Initializes the contract with the expected values", async function () {
-      const f = await loadFixture(deploy)
+      const f = await loadFixture(deployExampleERC404)
 
       expect(await f.contract.name()).to.equal(f.deployConfig.name)
       expect(await f.contract.symbol()).to.equal(f.deployConfig.symbol)
@@ -114,7 +157,7 @@ describe("ERC404", function () {
     })
 
     it("Mints the initial supply of tokens to the initial mint recipient", async function () {
-      const f = await loadFixture(deploy)
+      const f = await loadFixture(deployExampleERC404)
 
       // Expect full supply of ERC20 tokens to be minted to the initial recipient.
       expect(
@@ -135,11 +178,96 @@ describe("ERC404", function () {
     })
 
     it("Initializes the whitelist with the initial mint recipient", async function () {
-      const f = await loadFixture(deploy)
+      const f = await loadFixture(deployExampleERC404)
 
       expect(
         await f.contract.whitelist(f.deployConfig.initialMintRecipient),
       ).to.equal(true)
+    })
+  })
+
+  describe.skip("#erc721BalanceOf", function () {})
+
+  describe.skip("#erc20BalanceOf", function () {})
+
+  describe.skip("#ownerOf", function () {})
+
+  describe("Enforcement of max total supply limits", function () {
+    it("Allows minting of the full supply of ERC20 + ERC721 tokens", async function () {
+      const f = await loadFixture(deployBasicERC404)
+
+      // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
+      await f.contract
+        .connect(f.signers[0])
+        .mintERC20(
+          f.signers[1].address,
+          f.deployConfig.maxTotalSupplyERC721 * f.deployConfig.units,
+          true,
+        )
+
+      // Expect the minted count to be equal to the max total supply
+      expect(await f.contract.minted()).to.equal(
+        f.deployConfig.maxTotalSupplyERC721,
+      )
+    })
+
+    it("Allows minting of the full supply of ERC20 tokens only", async function () {
+      const f = await loadFixture(deployBasicERC404)
+
+      // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
+      await f.contract
+        .connect(f.signers[0])
+        .mintERC20(
+          f.signers[1].address,
+          f.deployConfig.maxTotalSupplyERC721 * f.deployConfig.units,
+          false,
+        )
+
+      // Expect the total supply to be equal to the max total supply
+      expect(await f.contract.totalSupply()).to.equal(
+        f.deployConfig.maxTotalSupplyERC20,
+      )
+      expect(await f.contract.minted()).to.equal(0n)
+    })
+
+    it("Prevents minting of ERC721 tokens beyond the max total supply", async function () {
+      const f = await loadFixture(deployBasicERC404)
+
+      // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
+      await f.contract
+        .connect(f.signers[0])
+        .mintERC20(
+          f.signers[1].address,
+          f.deployConfig.maxTotalSupplyERC721 * f.deployConfig.units,
+          true,
+        )
+
+      // Attempt to mint an additional ERC721 token
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .mintERC20(f.signers[1].address, 1n * f.deployConfig.units, true),
+      ).to.be.revertedWithCustomError(f.contract, "MaxERC20SupplyReached")
+    })
+
+    it("Prevents minting of ERC20 tokens beyond the max total supply", async function () {
+      const f = await loadFixture(deployBasicERC404)
+
+      // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
+      await f.contract
+        .connect(f.signers[0])
+        .mintERC20(
+          f.signers[1].address,
+          f.deployConfig.maxTotalSupplyERC721 * f.deployConfig.units,
+          true,
+        )
+
+      // Attempt to mint an additional ERC20 wei
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .mintERC20(f.signers[1].address, 1n, true),
+      ).to.be.revertedWithCustomError(f.contract, "MaxERC20SupplyReached")
     })
   })
 
@@ -148,7 +276,9 @@ describe("ERC404", function () {
       "Fractional transfers (moving less than 1 full token) that trigger ERC721 transfers",
       async function () {
         it("Handles the case of the receiver gaining a whole new token", async function () {
-          const f = await loadFixture(deployWithTokensInSecondSigner)
+          const f = await loadFixture(
+            deployExampleERC404WithTokensInSecondSigner,
+          )
 
           // Receiver starts out with 0.9 tokens
           const startingBalanceOfReceiver = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
@@ -201,7 +331,9 @@ describe("ERC404", function () {
         })
 
         it("Handles the case of the sender losing a partial token, dropping it below a full token", async function () {
-          const f = await loadFixture(deployWithTokensInSecondSigner)
+          const f = await loadFixture(
+            deployExampleERC404WithTokensInSecondSigner,
+          )
 
           // Initial balances
           const fromBalancesBefore = await getBalances(
@@ -252,7 +384,7 @@ describe("ERC404", function () {
 
     context("Moving one or more full tokens", async function () {
       it("Transfers whole tokens without fractional impact correctly", async function () {
-        const f = await loadFixture(deployWithTokensInSecondSigner)
+        const f = await loadFixture(deployExampleERC404WithTokensInSecondSigner)
 
         // Initial balances
         const fromBalancesBefore = await getBalances(f.contract, f.from.address)
@@ -303,7 +435,7 @@ describe("ERC404", function () {
         // - The receiver gains a whole new token (0.9 + 3.2 (3 whole, 0.2 fractional) = 4.1)
         // - The sender transfers 3 whole tokens to the receiver (99.1 - 3.2 (3 whole, 0.2 fractional) = 95.9)
 
-        const f = await loadFixture(deployWithTokensInSecondSigner)
+        const f = await loadFixture(deployExampleERC404WithTokensInSecondSigner)
 
         // Receiver starts out with 0.9 tokens
         const startingBalanceOfReceiver = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
