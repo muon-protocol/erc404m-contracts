@@ -194,7 +194,27 @@ describe("ERC404", function () {
 
   describe.skip("#erc20BalanceOf", function () {})
 
-  describe.skip("#ownerOf", function () {})
+  describe("#ownerOf", function () {
+    context("Some tokens have been minted", function () {
+      it("Reverts if the token ID does not exist", async function () {
+        const f = await loadFixture(deployExampleERC404)
+
+        await expect(f.contract.ownerOf(11n)).to.be.revertedWithCustomError(
+          f.contract,
+          "NotFound",
+        )
+      })
+
+      it("Reverts if the token ID is 0", async function () {
+        const f = await loadFixture(deployExampleERC404)
+
+        await expect(f.contract.ownerOf(0n)).to.be.revertedWithCustomError(
+          f.contract,
+          "NotFound",
+        )
+      })
+    })
+  })
 
   describe("Enforcement of max total supply limits", function () {
     it("Allows minting of the full supply of ERC20 + ERC721 tokens", async function () {
@@ -692,8 +712,6 @@ describe("ERC404", function () {
     })
   })
 
-  describe("#transferFrom", function () {})
-
   describe("#_setWhitelist", function () {
     it("Allows the owner to add and remove addresses from the whitelist", async function () {
       const f = await loadFixture(deployExampleERC404)
@@ -734,4 +752,6 @@ describe("ERC404", function () {
       ).to.be.revertedWithCustomError(f.contract, "CannotRemoveFromWhitelist")
     })
   })
+
+  describe("#transferFrom", function () {})
 })
