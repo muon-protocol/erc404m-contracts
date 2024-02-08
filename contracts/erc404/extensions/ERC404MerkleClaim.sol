@@ -1,11 +1,10 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IERC404MerkleClaim} from "./IERC404MerkleClaim.sol";
 
-abstract contract ERC404MerkleClaim is IERC404MerkleClaim, Context {
+abstract contract ERC404MerkleClaim is IERC404MerkleClaim {
   bool public airdropIsOpen;
   bytes32 public airdropMerkleRoot;
   mapping(address => bool) public hasClaimedAirdrop;
@@ -36,7 +35,7 @@ abstract contract ERC404MerkleClaim is IERC404MerkleClaim, Context {
     bytes32[] memory proof_,
     uint256 value_
   ) public virtual whenAirdropIsOpen {
-    _validateAndRecordAirdropClaim(proof_, _msgSender(), value_);
+    _validateAndRecordAirdropClaim(proof_, msg.sender, value_);
   }
 
   function _setAirdropMerkleRoot(bytes32 airdropMerkleRoot_) internal {

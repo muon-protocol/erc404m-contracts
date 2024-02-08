@@ -4,11 +4,10 @@ pragma solidity ^0.8.20;
 import "hardhat/console.sol";
 
 import {DoubleEndedQueue} from "@openzeppelin/contracts/utils/structs/DoubleEndedQueue.sol";
-import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {IERC404} from "./IERC404.sol";
 import {ERC721Receiver} from "../ERC721Receiver.sol";
 
-abstract contract ERC404 is Context, IERC404 {
+abstract contract ERC404 is IERC404 {
   using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
 
   /// @dev The queue of ERC721 tokens stored in the contract.
@@ -117,7 +116,7 @@ abstract contract ERC404 is Context, IERC404 {
       address nftOwner = _ownerOf[id];
 
       if (
-        _msgSender() != nftOwner && !isApprovedForAll[nftOwner][_msgSender()]
+        msg.sender != nftOwner && !isApprovedForAll[nftOwner][msg.sender]
       ) {
         revert Unauthorized();
       }
@@ -129,10 +128,10 @@ abstract contract ERC404 is Context, IERC404 {
     } else {
       // Intention is to approve as ERC-20 token (value).
       uint256 value = valueOrId;
-      allowance[_msgSender()][spender] = value;
+      allowance[msg.sender][spender] = value;
 
-      emit Approval(_msgSender(), spender, value);
-      emit ERC20Approval(_msgSender(), spender, value);
+      emit Approval(msg.sender, spender, value);
+      emit ERC20Approval(msg.sender, spender, value);
     }
 
     return true;
@@ -140,8 +139,8 @@ abstract contract ERC404 is Context, IERC404 {
 
   /// @notice Function for ERC721 approvals
   function setApprovalForAll(address operator, bool approved) public virtual {
-    isApprovedForAll[_msgSender()][operator] = approved;
-    emit ApprovalForAll(_msgSender(), operator, approved);
+    isApprovedForAll[msg.sender][operator] = approved;
+    emit ApprovalForAll(msg.sender, operator, approved);
   }
 
   /// @notice Function for mixed transfers
@@ -164,9 +163,9 @@ abstract contract ERC404 is Context, IERC404 {
       }
 
       if (
-        _msgSender() != from &&
-        !isApprovedForAll[from][_msgSender()] &&
-        _msgSender() != getApproved[id]
+        msg.sender != from &&
+        !isApprovedForAll[from][msg.sender] &&
+        msg.sender != getApproved[id]
       ) {
         revert Unauthorized();
       }
@@ -177,13 +176,13 @@ abstract contract ERC404 is Context, IERC404 {
     } else {
       // Intention is to transfer as ERC-20 token (value).
       uint256 value = valueOrId;
-      uint256 allowed = allowance[from][_msgSender()];
+      uint256 allowed = allowance[from][msg.sender];
 
       if (allowed != type(uint256).max) {
         if (allowed < value) {
           revert InsufficientAllowance();
         }
-        allowance[from][_msgSender()] = allowed - value;
+        allowance[from][msg.sender] = allowed - value;
       }
 
       // Transferring ERC20s directly requires the _transfer function.
@@ -193,7 +192,7 @@ abstract contract ERC404 is Context, IERC404 {
 
   /// @notice Function for ERC20 transfers
   function transfer(address to, uint256 value) public virtual returns (bool) {
-    return _transfer(_msgSender(), to, value);
+    return _transfer(msg.sender, to, value);
   }
 
   /// @notice Function for ERC721 transfers with contract support
@@ -206,7 +205,7 @@ abstract contract ERC404 is Context, IERC404 {
 
     if (
       to.code.length != 0 &&
-      ERC721Receiver(to).onERC721Received(_msgSender(), from, id, "") !=
+      ERC721Receiver(to).onERC721Received(msg.sender, from, id, "") !=
       ERC721Receiver.onERC721Received.selector
     ) {
       revert UnsafeRecipient();
@@ -224,7 +223,7 @@ abstract contract ERC404 is Context, IERC404 {
 
     if (
       to.code.length != 0 &&
-      ERC721Receiver(to).onERC721Received(_msgSender(), from, id, data) !=
+      ERC721Receiver(to).onERC721Received(msg.sender, from, id, data) !=
       ERC721Receiver.onERC721Received.selector
     ) {
       revert UnsafeRecipient();
