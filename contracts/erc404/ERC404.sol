@@ -392,12 +392,17 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Internal function for ERC20 minting
-  /// @dev This function will allow minting of new ERC20s up to the maxTotalSupplyERC20. If mintCorrespondingERC721s_ is true, it will also mint the corresponding ERC721s. Note that you cannot mint to the zero address, nor to this contract.
+  /// @dev This function will allow minting of new ERC20s up to the maxTotalSupplyERC20. If mintCorrespondingERC721s_ is true, it will also mint the corresponding ERC721s. 
+  /// Note that you cannot mint to the zero address (you can't mint and immediately burn in the same transfer).
   function _mintERC20(
     address to,
     uint256 value,
     bool mintCorrespondingERC721s_
   ) internal virtual {
+    if (to == address(0)) {
+      revert InvalidRecipient();
+    }
+
     _transferERC20(address(0), to, value);
 
     // If mintCorrespondingERC721s_ is true, mint the corresponding ERC721s. This uses _retrieveOrMintERC721, which will first try to pull from the bank, and if the bank is empty, it will mint a new token.
