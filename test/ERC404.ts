@@ -49,9 +49,9 @@ describe("ERC404", function () {
     }
   }
 
-  async function deployBasicERC404() {
+  async function deployMinimalERC404() {
     const signers = await ethers.getSigners()
-    const factory = await ethers.getContractFactory("BasicERC404")
+    const factory = await ethers.getContractFactory("MinimalERC404")
 
     const name = "Example"
     const symbol = "EXM"
@@ -194,7 +194,7 @@ describe("ERC404", function () {
 
   describe("Enforcement of max total supply limits", function () {
     it("Allows minting of the full supply of ERC20 + ERC721 tokens", async function () {
-      const f = await loadFixture(deployBasicERC404)
+      const f = await loadFixture(deployMinimalERC404)
 
       // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
       await f.contract
@@ -212,7 +212,7 @@ describe("ERC404", function () {
     })
 
     it("Allows minting of the full supply of ERC20 tokens only", async function () {
-      const f = await loadFixture(deployBasicERC404)
+      const f = await loadFixture(deployMinimalERC404)
 
       // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
       await f.contract
@@ -231,7 +231,7 @@ describe("ERC404", function () {
     })
 
     it("Prevents minting of ERC721 tokens beyond the max total supply", async function () {
-      const f = await loadFixture(deployBasicERC404)
+      const f = await loadFixture(deployMinimalERC404)
 
       // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
       await f.contract
@@ -251,7 +251,7 @@ describe("ERC404", function () {
     })
 
     it("Prevents minting of ERC20 tokens beyond the max total supply", async function () {
-      const f = await loadFixture(deployBasicERC404)
+      const f = await loadFixture(deployMinimalERC404)
 
       // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
       await f.contract
@@ -268,6 +268,37 @@ describe("ERC404", function () {
           .connect(f.signers[0])
           .mintERC20(f.signers[1].address, 1n, true),
       ).to.be.revertedWithCustomError(f.contract, "MaxERC20SupplyReached")
+    })
+  })
+
+  describe("Storage and retrieval of unused ERC721s on contract", function () {
+    it("Mints ERC721s from 0x0 when the contract's bank is empty", async function () {
+      const f = await loadFixture(deployMinimalERC404)
+
+      // Expect the contract's bank to be empty
+      // TODO: for now we can only check the minted count as the balance is not updated for the contract.
+      expect(await f.contract.minted()).to.equal(0n)
+
+      // Mint 10 ERC721s
+      const mintTx = f.contract
+        .connect(f.signers[0])
+        .mintERC20(f.signers[1].address, 10n * f.deployConfig.units, true)
+
+      for (let i = 0n; i < 10n; i++) {
+        await expect(mintTx)
+          .to.emit(f.contract, "ERC721Transfer")
+          .withArgs(ethers.ZeroAddress, f.signers[1].address, i)
+        await expect(mintTx)
+          .to.emit(f.contract, "Transfer")
+          .withArgs(ethers.ZeroAddress, f.signers[1].address, i)
+      }
+
+      expect(await f.contract.minted()).to.equal(10n)
+
+      // Expect the contract's bank to be the contract's address
+      expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
+        10n,
+      )
     })
   })
 
