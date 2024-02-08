@@ -475,6 +475,10 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Initialization function to set pairs / etc, saving gas by avoiding mint / burn on unnecessary targets
   function _setWhitelist(address target_, bool state_) internal virtual {
+    // If the target has 1 or more NFTs, they should not be removed from the whitelist.
+    if (erc721BalanceOf(target_) >= 1 && !state_) {
+      revert CannotRemoveFromWhitelist();
+    }
     whitelist[target_] = state_;
   }
 }

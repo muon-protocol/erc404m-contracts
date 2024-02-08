@@ -43,6 +43,7 @@ interface IERC404 {
   error MaxERC20SupplyReached();
   error MaxERC721SupplyReached();
   error DecimalsTooLow();
+  error CannotRemoveFromWhitelist();
 
   function ownerOf(uint256 id_) external view returns (address nftOwner);
   function tokenURI(uint256 id_) external view returns (string memory);

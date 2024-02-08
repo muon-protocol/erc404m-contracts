@@ -693,4 +693,43 @@ describe("ERC404", function () {
   })
 
   describe("#transferFrom", function () {})
+
+  describe("#_setWhitelist", function () {
+    it("Allows the owner to add and remove addresses from the whitelist", async function () {
+      const f = await loadFixture(deployExampleERC404)
+
+      // Add a random address to the whitelist
+      await f.contract
+        .connect(f.signers[0])
+        .setWhitelist(f.randomAddresses[0], true)
+      expect(await f.contract.whitelist(f.randomAddresses[0])).to.equal(true)
+
+      // Remove the random address from the whitelist
+      await f.contract
+        .connect(f.signers[0])
+        .setWhitelist(f.randomAddresses[0], false)
+      expect(await f.contract.whitelist(f.randomAddresses[0])).to.equal(false)
+    })
+
+    it("An address cannot be removed from the whitelist while it has an NFT balance >= 1", async function () {
+      const f = await loadFixture(deployExampleERC404)
+
+      const targetAddress = f.randomAddresses[0]
+
+      // Transfer 1 full NFT worth of tokens to that address.
+      await f.contract
+        .connect(f.signers[0])
+        .transfer(targetAddress, f.deployConfig.units)
+
+      expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(1n)
+
+      // Add that address to the whitelist.
+      await f.contract.connect(f.signers[0]).setWhitelist(targetAddress, true)
+
+      // Attempt to remove the random address from the whitelist.
+      await expect(
+        f.contract.connect(f.signers[0]).setWhitelist(targetAddress, false),
+      ).to.be.revertedWithCustomError(f.contract, "CannotRemoveFromWhitelist")
+    })
+  })
 })
