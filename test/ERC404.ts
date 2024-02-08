@@ -279,12 +279,16 @@ describe("ERC404", function () {
       // TODO: for now we can only check the minted count as the balance is not updated for the contract.
       expect(await f.contract.minted()).to.equal(0n)
 
-      // Mint 10 ERC721s
-      const mintTx = f.contract
-        .connect(f.signers[0])
-        .mintERC20(f.signers[1].address, 10n * f.deployConfig.units, true)
+      const nftQty = 10n
+      const value = nftQty * f.deployConfig.units
 
-      for (let i = 0n; i < 10n; i++) {
+      // Mint 10 ERC721s
+      const mintTx = await f.contract
+        .connect(f.signers[0])
+        .mintERC20(f.signers[1].address, value, true)
+
+      // Check for ERC721Transfer mint events (from 0x0 to the recipient)
+      for (let i = 0n; i < nftQty; i++) {
         await expect(mintTx)
           .to.emit(f.contract, "ERC721Transfer")
           .withArgs(ethers.ZeroAddress, f.signers[1].address, i)
@@ -293,11 +297,76 @@ describe("ERC404", function () {
           .withArgs(ethers.ZeroAddress, f.signers[1].address, i)
       }
 
+      // Check for ERC20Transfer mint events (from 0x0 to the recipient)
+      await expect(mintTx)
+        .to.emit(f.contract, "ERC20Transfer")
+        .withArgs(ethers.ZeroAddress, f.signers[1].address, value)
+      await expect(mintTx)
+        .to.emit(f.contract, "Transfer")
+        .withArgs(ethers.ZeroAddress, f.signers[1].address, value)
+
+      // 10 NFTs should have been minted
       expect(await f.contract.minted()).to.equal(10n)
 
-      // Expect the contract's bank to be the contract's address
+      // Expect
       expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
         10n,
+      )
+    })
+
+    it("Retrieves ERC721s from the contract's bank when the contract's bank holds NFTs", async function () {
+      const f = await loadFixture(deployMinimalERC404)
+
+      expect(await f.contract.minted()).to.equal(0n)
+
+      const nftQty = 10n
+      const value = nftQty * f.deployConfig.units
+
+      await f.contract
+        .connect(f.signers[0])
+        .mintERC20(f.signers[1].address, value, true)
+
+      expect(await f.contract.minted()).to.equal(10n)
+
+      // Move a fraction of a token to another address to break apart a full NFT.
+
+      const fractionalValueToTransferERC20 = f.deployConfig.units / 10n // 0.1 tokens
+      const fractionalTransferTx = await f.contract
+        .connect(f.signers[1])
+        .transfer(f.signers[2].address, fractionalValueToTransferERC20)
+
+      await expect(fractionalTransferTx)
+        .to.emit(f.contract, "Transfer")
+        .withArgs(
+          f.signers[1].address,
+          f.signers[2].address,
+          fractionalValueToTransferERC20,
+        )
+
+      await expect(fractionalTransferTx)
+        .to.emit(f.contract, "ERC20Transfer")
+        .withArgs(
+          f.signers[1].address,
+          f.signers[2].address,
+          fractionalValueToTransferERC20,
+        )
+
+      // Expect token id 9 to be transferred to the contract's address (popping the last NFT from the sender's stack)
+      await expect(fractionalTransferTx)
+        .to.emit(f.contract, "ERC721Transfer")
+        .withArgs(f.signers[1].address, await f.contract.getAddress(), 9n)
+
+      // 10 tokens still minted, nothing changes there.
+      expect(await f.contract.minted()).to.equal(10n)
+
+      // The owner of NFT 9 should be the contract's address
+      expect(await f.contract.ownerOf(9n)).to.equal(
+        await f.contract.getAddress(),
+      )
+
+      // The sender's NFT balance should be 9
+      expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
+        9n,
       )
     })
   })
