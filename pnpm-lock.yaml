@@ -13,6 +13,9 @@ dependencies:
     version: 4.1.1(typescript@5.3.3)
 
 devDependencies:
+  '@nomicfoundation/hardhat-chai-matchers':
+    specifier: ^2.0.4
+    version: 2.0.4(@nomicfoundation/hardhat-ethers@3.0.5)(chai@4.4.1)(ethers@6.10.0)(hardhat@2.19.5)
   '@nomicfoundation/hardhat-toolbox':
     specifier: ^4.0.0
     version: 4.0.0(@nomicfoundation/hardhat-chai-matchers@2.0.4)(@nomicfoundation/hardhat-ethers@3.0.5)(@nomicfoundation/hardhat-network-helpers@1.0.10)(@nomicfoundation/hardhat-verify@2.0.4)(@typechain/ethers-v6@0.5.1)(@typechain/hardhat@9.1.0)(@types/chai@4.3.11)(@types/mocha@10.0.6)(@types/node@20.11.16)(chai@4.4.1)(ethers@6.10.0)(hardhat-gas-reporter@1.0.10)(hardhat@2.19.5)(solidity-coverage@0.8.6)(ts-node@10.9.2)(typechain@8.3.2)(typescript@5.3.3)

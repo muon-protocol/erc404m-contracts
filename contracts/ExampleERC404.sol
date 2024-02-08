@@ -32,7 +32,7 @@ contract ExampleERC404 is Ownable, ERC404, ERC404MerkleClaim {
     uint256 value_
   ) public override whenAirdropIsOpen {
     super.airdropMint(proof_, value_);
-    _mintERC20(_msgSender(), value_, true);
+    _mintERC20(msg.sender, value_, true);
   }
 
   function setAirdropMerkleRoot(bytes32 airdropMerkleRoot_) external onlyOwner {
