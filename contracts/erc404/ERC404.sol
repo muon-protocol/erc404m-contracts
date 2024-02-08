@@ -106,7 +106,7 @@ abstract contract ERC404 is IERC404 {
   function tokenURI(uint256 id) public view virtual returns (string memory);
 
   /// @notice Function for token approvals
-  /// @dev This function assumes id ERC721 if value less than or equal to current max id
+  /// @dev This function assumes the operator is attempting to approve an ERC721 if valueOrId is less than or equal to current max id
   function approve(
     address spender,
     uint256 valueOrId
@@ -144,8 +144,8 @@ abstract contract ERC404 is IERC404 {
     emit ApprovalForAll(msg.sender, operator, approved);
   }
 
-  /// @notice Function for mixed transfers.
-  /// @dev This function assumes id ERC721 if value less than or equal to current max id
+  /// @notice Function for mixed transfers from an operator that may be different than 'from'.
+  /// @dev This function assumes the operator is attempting to transfer an ERC721 if valueOrId is less than or equal to current max id.
   function transferFrom(
     address from,
     address to,
@@ -159,6 +159,7 @@ abstract contract ERC404 is IERC404 {
     if (valueOrId <= minted) {
       // Intention is to transfer as ERC-721 token (id).
       uint256 id = valueOrId;
+
       if (from != _ownerOf[id]) {
         revert InvalidSender();
       }
@@ -193,14 +194,33 @@ abstract contract ERC404 is IERC404 {
     }
   }
 
-  /// @notice Function for ERC20 transfers
-  function transfer(address to, uint256 value) public virtual returns (bool) {
-    // Prevent burning tokens to the 0 address.
+  /// @notice Function for mixed transfers.
+  /// @dev This function assumes the operator is attempting to transfer an ERC721 if valueOrId is less than or equal to current max id.
+  function transfer(address to, uint256 valueOrId) public virtual returns (bool) {
+   // Prevent burning tokens to the 0 address.
     if (to == address(0)) {
       revert InvalidRecipient();
     }
 
-    return _transfer(msg.sender, to, value);
+    if (valueOrId <= minted) {
+      // Intention is to transfer as ERC-721 token (id).
+      uint256 id = valueOrId;
+
+      if (msg.sender != _ownerOf[id]) {
+        revert Unauthorized();
+      }
+
+      // Transfer 1 * units ERC20 and 1 ERC721 token. 
+      // This this path is used to ensure the exact ERC721 specified is transferred.
+      _transferERC20(msg.sender, to, units);
+      _transferERC721(msg.sender, to, id);
+    } else {
+      // Intention is to transfer as ERC-20 token (value).
+      uint256 value = valueOrId;
+
+      // Transferring ERC20s directly requires the _transfer function.
+      _transfer(msg.sender, to, value);
+    }
   }
 
   /// @notice Function for ERC721 transfers with contract support
