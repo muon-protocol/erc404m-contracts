@@ -222,6 +222,8 @@ abstract contract ERC404 is IERC404 {
       // Transferring ERC20s directly requires the _transfer function.
       _transfer(msg.sender, to, value);
     }
+    
+    return true;
   }
 
   /// @notice Function for ERC721 transfers with contract support.
@@ -293,7 +295,7 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Consolidated record keeping function for transferring ERC721s.
-  /// @dev Assign the token to the new owner, and remove from the old owner. 
+  /// @dev Assign the token to the new owner, and remove from the old owner.
   /// Note that this function allows transfers to and from 0x0.
   function _transferERC721(
     address from,

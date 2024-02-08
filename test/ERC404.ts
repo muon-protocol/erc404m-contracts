@@ -680,4 +680,17 @@ describe("ERC404", function () {
       ).to.be.revertedWithCustomError(f.contract, "InsufficientAllowance")
     })
   })
+
+  describe("#transfer", function () {
+    it("Reverts when attempting to transfer anything to 0x0", async function () {
+      const f = await loadFixture(deployExampleERC404)
+
+      // Attempt to transfer to 0x0. This will always fail as it's not possible for the 0x0 address to receive a transfer.
+      await expect(
+        f.contract.connect(f.signers[0]).transfer(ethers.ZeroAddress, 1n),
+      ).to.be.revertedWithCustomError(f.contract, "InvalidRecipient")
+    })
+  })
+
+  describe("#transferFrom", function () {})
 })
