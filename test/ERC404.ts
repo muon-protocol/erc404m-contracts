@@ -667,4 +667,17 @@ describe("ERC404", function () {
       })
     })
   })
+
+  describe("Minting and burning tokens (ERC20 & ERC721)", function () {
+    it("Doesn't allow anyone to transfer from 0x0", async function () {
+      const f = await loadFixture(deployExampleERC404)
+
+      // Attempt to transfer from 0x0. This will always fail as it's not possible for the 0x0 address to sign a transaction, so it can neither send a transfer nor give another address an allowance.
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .transferFrom(ethers.ZeroAddress, f.signers[1].address, 1n),
+      ).to.be.revertedWithCustomError(f.contract, "InsufficientAllowance")
+    })
+  })
 })
