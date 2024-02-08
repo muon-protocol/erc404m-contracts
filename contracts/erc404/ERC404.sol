@@ -446,7 +446,7 @@ abstract contract ERC404 is IERC404 {
 
     address nftOwner = _ownerOf[id];
 
-    // The token should not already belong to anyone besides 0x0 or this contract. If it does, something is wrong.
+    // The token should not already belong to anyone besides 0x0 or this contract. If it does, something is wrong, as this should never happen.
     if (nftOwner != address(0) && nftOwner != address(this)) {
       revert AlreadyExists();
     }

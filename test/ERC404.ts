@@ -208,10 +208,6 @@ describe("ERC404", function () {
     })
   })
 
-  describe.skip("#erc721BalanceOf", function () {})
-
-  describe.skip("#erc20BalanceOf", function () {})
-
   describe("#ownerOf", function () {
     context("Some tokens have been minted", function () {
       it("Reverts if the token ID does not exist", async function () {
@@ -789,4 +785,8 @@ describe("ERC404", function () {
   })
 
   describe("#transferFrom", function () {})
+
+  describe.skip("#erc721BalanceOf", function () {})
+
+  describe.skip("#erc20BalanceOf", function () {})
 })
