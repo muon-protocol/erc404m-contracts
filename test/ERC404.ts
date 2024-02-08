@@ -25,6 +25,7 @@ describe("ERC404", function () {
       initialMintRecipient,
     )
     await contract.waitForDeployment()
+    const contractAddress = await contract.getAddress()
 
     // Generate 10 random addresses for experiments.
     const randomAddresses = Array.from(
@@ -34,6 +35,7 @@ describe("ERC404", function () {
 
     return {
       contract,
+      contractAddress,
       signers,
       deployConfig: {
         name,
@@ -69,6 +71,7 @@ describe("ERC404", function () {
       initialOwner,
     )
     await contract.waitForDeployment()
+    const contractAddress = await contract.getAddress()
 
     // Generate 10 random addresses for experiments.
     const randomAddresses = Array.from(
@@ -78,6 +81,7 @@ describe("ERC404", function () {
 
     return {
       contract,
+      contractAddress,
       signers,
       deployConfig: {
         name,
@@ -314,7 +318,7 @@ describe("ERC404", function () {
       )
     })
 
-    it("Retrieves ERC721s from the contract's bank when the contract's bank holds NFTs", async function () {
+    it("Stores ERC721s in contract's bank when a sender loses a full token", async function () {
       const f = await loadFixture(deployMinimalERC404)
 
       expect(await f.contract.minted()).to.equal(0n)
@@ -327,6 +331,9 @@ describe("ERC404", function () {
         .mintERC20(f.signers[1].address, value, true)
 
       expect(await f.contract.minted()).to.equal(10n)
+
+      // TODO The contract's NFT balance should be 0
+      // expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(0n)
 
       // Move a fraction of a token to another address to break apart a full NFT.
 
@@ -354,20 +361,93 @@ describe("ERC404", function () {
       // Expect token id 9 to be transferred to the contract's address (popping the last NFT from the sender's stack)
       await expect(fractionalTransferTx)
         .to.emit(f.contract, "ERC721Transfer")
-        .withArgs(f.signers[1].address, await f.contract.getAddress(), 9n)
+        .withArgs(f.signers[1].address, f.contractAddress, 9n)
 
       // 10 tokens still minted, nothing changes there.
       expect(await f.contract.minted()).to.equal(10n)
 
       // The owner of NFT 9 should be the contract's address
-      expect(await f.contract.ownerOf(9n)).to.equal(
-        await f.contract.getAddress(),
-      )
+      expect(await f.contract.ownerOf(9n)).to.equal(f.contractAddress)
 
       // The sender's NFT balance should be 9
       expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
         9n,
       )
+
+      // TODO The contract's NFT balance should be 1
+      // expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(1n)
+    })
+
+    it("Retrieves ERC721s from the contract's bank when the contract's bank holds NFTs and the user regains a full token", async function () {
+      const f = await loadFixture(deployMinimalERC404)
+
+      expect(await f.contract.minted()).to.equal(0n)
+
+      const nftQty = 10n
+      const erc20Value = nftQty * f.deployConfig.units
+
+      await f.contract
+        .connect(f.signers[0])
+        .mintERC20(f.signers[1].address, erc20Value, true)
+
+      expect(await f.contract.minted()).to.equal(10n)
+
+      // Move a fraction of a token to another address to break apart a full NFT.
+      const fractionalValueToTransferERC20 = f.deployConfig.units / 10n // 0.1 tokens
+
+      await f.contract
+        .connect(f.signers[1])
+        .transfer(f.signers[2].address, fractionalValueToTransferERC20)
+
+      // The owner of NFT 9 should be the contract's address
+      expect(await f.contract.ownerOf(9n)).to.equal(f.contractAddress)
+
+      // The sender's NFT balance should be 9
+      expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
+        9n,
+      )
+
+      // TODO The contract's NFT balance should be 1
+      // expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(1n)
+
+      // Transfer the fractional portion needed to regain a full token back to the original sender
+      const regainFullTokenTx = await f.contract
+        .connect(f.signers[2])
+        .transfer(f.signers[1].address, fractionalValueToTransferERC20)
+
+      expect(regainFullTokenTx)
+        .to.emit(f.contract, "Transfer")
+        .withArgs(
+          f.signers[2].address,
+          f.signers[1].address,
+          fractionalValueToTransferERC20,
+        )
+      expect(regainFullTokenTx)
+        .to.emit(f.contract, "ERC20Transfer")
+        .withArgs(
+          f.signers[2].address,
+          f.signers[1].address,
+          fractionalValueToTransferERC20,
+        )
+      expect(regainFullTokenTx)
+        .to.emit(f.contract, "ERC721Transfer")
+        .withArgs(f.contractAddress, f.signers[1].address, 9n)
+
+      // Original sender's ERC20 balance should be 10 * units
+      expect(await f.contract.erc20BalanceOf(f.signers[1].address)).to.equal(
+        erc20Value,
+      )
+
+      // The owner of NFT 9 should be the original sender's address
+      expect(await f.contract.ownerOf(9n)).to.equal(f.signers[1].address)
+
+      // The sender's NFT balance should be 10
+      expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
+        10n,
+      )
+
+      // TODO The contract's NFT balance should be 0
+      // expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(0n)
     })
   })
 
