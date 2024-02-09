@@ -47,17 +47,38 @@ interface IERC404 {
   error DecimalsTooLow();
   error CannotRemoveFromWhitelist();
 
-  function ownerOf(uint256 id_) external view returns (address nftOwner);
+  function name() external view returns (string memory);
+  function symbol() external view returns (string memory);
+  function decimals() external view returns (uint8);
+  function maxTotalSupplyERC20() external view returns (uint256);
+  function maxTotalSupplyERC721() external view returns (uint256);
+  function totalSupply() external view returns (uint256);
+  function minted() external view returns (uint256);
+  function balanceOf(address owner_) external view returns (uint256);
+  function erc721BalanceOf(address owner_) external view returns (uint256);
+  function erc20BalanceOf(address owner_) external view returns (uint256);
+  function whitelist(address account_) external view returns (bool);
+  function isApprovedForAll(address owner_, address operator_) external view returns (bool);
+  function allowance(address owner_, address spender_) external view returns (uint256);
+  function owned(address owner_) external view returns (uint256[] memory);
+  function ownerOf(uint256 id_) external view returns (address erc721Owner);
   function tokenURI(uint256 id_) external view returns (string memory);
-  function approve(address spender_, uint256 valueOrId) external returns (bool);
+  function approve(
+    address spender_,
+    uint256 valueOrId_
+  ) external returns (bool);
   function setApprovalForAll(address operator_, bool approved_) external;
-  function transferFrom(address from_, address to, uint256 valueOrId_) external returns (bool);
+  function transferFrom(
+    address from_,
+    address to_,
+    uint256 valueOrId_
+  ) external returns (bool);
   function transfer(address to_, uint256 amount_) external returns (bool);
   function safeTransferFrom(address from_, address to_, uint256 id_) external;
   function safeTransferFrom(
-    address from,
-    address to,
-    uint256 id,
-    bytes calldata data
+    address from_,
+    address to_,
+    uint256 id_,
+    bytes calldata data_
   ) external;
 }

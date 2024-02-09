@@ -78,13 +78,21 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Function to find owner of a given ERC-721 token
-  function ownerOf(uint256 id_) public view virtual returns (address nftOwner) {
-    nftOwner = _ownerOf[id_];
+  function ownerOf(
+    uint256 id_
+  ) public view virtual returns (address erc721Owner) {
+    erc721Owner = _ownerOf[id_];
 
     // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
-    if (id_ > minted || id_ == 0 || nftOwner == address(0)) {
+    if (id_ > minted || id_ == 0 || erc721Owner == address(0)) {
       revert NotFound();
     }
+  }
+
+  function owned(
+    address owner_
+  ) public view virtual returns (uint256[] memory) {
+    return _owned[owner_];
   }
 
   function erc721BalanceOf(
@@ -112,17 +120,24 @@ abstract contract ERC404 is IERC404 {
     if (valueOrId_ <= minted && valueOrId_ > 0) {
       // Intention is to approve as ERC-721 token (id).
       uint256 id = valueOrId_;
-      address nftOwner = _ownerOf[id];
+      address erc721Owner = _ownerOf[id];
 
-      if (msg.sender != nftOwner && !isApprovedForAll[nftOwner][msg.sender]) {
+      if (
+        msg.sender != erc721Owner && !isApprovedForAll[erc721Owner][msg.sender]
+      ) {
         revert Unauthorized();
       }
 
       getApproved[id] = spender_;
 
-      emit Approval(nftOwner, spender_, id);
-      emit ERC721Approval(nftOwner, spender_, id);
+      emit Approval(erc721Owner, spender_, id);
+      emit ERC721Approval(erc721Owner, spender_, id);
     } else {
+      // Prevent granting 0x0 an ERC-20 allowance.
+      if (spender_ == address(0)) {
+        revert InvalidSpender();
+      }
+
       // Intention is to approve as ERC-20 token (value).
       uint256 value = valueOrId_;
       allowance[msg.sender][spender_] = value;
@@ -449,15 +464,15 @@ abstract contract ERC404 is IERC404 {
       }
     }
 
-    address nftOwner = _ownerOf[id];
+    address erc721Owner = _ownerOf[id];
 
     // The token should not already belong to anyone besides 0x0 or this contract. If it does, something is wrong, as this should never happen.
-    if (nftOwner != address(0) && nftOwner != address(this)) {
+    if (erc721Owner != address(0) && erc721Owner != address(this)) {
       revert AlreadyExists();
     }
 
     // Transfer the token to the recipient, either transferring from the contract's bank or minting.
-    _transferERC721(nftOwner, to_, id);
+    _transferERC721(erc721Owner, to_, id);
   }
 
   /// @notice Internal function for ERC-721 deposits to bank (this contract).
