@@ -790,7 +790,7 @@ describe("ERC404", function () {
         f.contract
           .connect(f.signers[0])
           .transferFrom(ethers.ZeroAddress, f.signers[1].address, 1n),
-      ).to.be.revertedWithCustomError(f.contract, "InsufficientAllowance")
+      ).to.be.revertedWithCustomError(f.contract, "InvalidSender")
     })
   })
 

@@ -46,6 +46,9 @@ interface IERC404 {
   error MaxERC721SupplyReached();
   error DecimalsTooLow();
   error CannotRemoveFromWhitelist();
+  error PermitDeadlineExpired();
+  error InvalidSigner();
+  error InvalidApproval();
 
   function name() external view returns (string memory);
   function symbol() external view returns (string memory);
@@ -58,8 +61,14 @@ interface IERC404 {
   function erc721BalanceOf(address owner_) external view returns (uint256);
   function erc20BalanceOf(address owner_) external view returns (uint256);
   function whitelist(address account_) external view returns (bool);
-  function isApprovedForAll(address owner_, address operator_) external view returns (bool);
-  function allowance(address owner_, address spender_) external view returns (uint256);
+  function isApprovedForAll(
+    address owner_,
+    address operator_
+  ) external view returns (bool);
+  function allowance(
+    address owner_,
+    address spender_
+  ) external view returns (uint256);
   function owned(address owner_) external view returns (uint256[] memory);
   function ownerOf(uint256 id_) external view returns (address erc721Owner);
   function tokenURI(uint256 id_) external view returns (string memory);
@@ -80,5 +89,15 @@ interface IERC404 {
     address to_,
     uint256 id_,
     bytes calldata data_
+  ) external;
+  function DOMAIN_SEPARATOR() external view returns (bytes32);
+  function permit(
+    address owner_,
+    address spender_,
+    uint256 value_,
+    uint256 deadline_,
+    uint8 v_,
+    bytes32 r_,
+    bytes32 s_
   ) external;
 }
