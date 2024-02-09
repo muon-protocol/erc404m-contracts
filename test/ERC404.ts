@@ -1146,6 +1146,13 @@ describe("ERC404", function () {
         f.deployConfig.maxTotalSupplyERC20,
       )
 
+      // Expect that minting a single additional ERC-20 will revert.
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .mintERC20(f.signers[1].address, 1n, true),
+      ).to.be.revertedWithCustomError(f.contract, "MaxERC20SupplyReached")
+
       // Expect the mint recipient to have the full supply of ERC20 tokens
       expect(await f.contract.erc20BalanceOf(f.signers[1].address)).to.equal(
         f.deployConfig.maxTotalSupplyERC20,
