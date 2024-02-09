@@ -67,7 +67,6 @@ abstract contract ERC404 is IERC404 {
   ) {
     name = name_;
     symbol = symbol_;
-
     if (decimals_ < 18) {
       revert DecimalsTooLow();
     }
@@ -104,7 +103,7 @@ abstract contract ERC404 is IERC404 {
   function tokenURI(uint256 id_) public view virtual returns (string memory);
 
   /// @notice Function for token approvals
-  /// @dev This function assumes the operator is attempting to approve an ERC-721 if valueOrId is less than the minted count.
+  /// @dev This function assumes the operator is attempting to approve an ERC-721 if valueOrId is less than the minted count. Note: Unlike setApprovalForAll, spender_ must be allowed to be 0x0 so that approval can be revoked.
   function approve(
     address spender_,
     uint256 valueOrId_
@@ -137,6 +136,10 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Function for ERC-721 approvals
   function setApprovalForAll(address operator_, bool approved_) public virtual {
+    // Prevent approvals to 0x0.
+    if (operator_ == address(0)) {
+      revert InvalidOperator();
+    }
     isApprovedForAll[msg.sender][operator_] = approved_;
     emit ApprovalForAll(msg.sender, operator_, approved_);
   }
@@ -147,7 +150,7 @@ abstract contract ERC404 is IERC404 {
     address from_,
     address to_,
     uint256 valueOrId_
-  ) public virtual {
+  ) public virtual returns (bool) {
     // Prevent burning tokens to the 0 address.
     if (to_ == address(0)) {
       revert InvalidRecipient();
@@ -189,6 +192,8 @@ abstract contract ERC404 is IERC404 {
       // Transferring ERC-20s directly requires the _transfer function.
       _transfer(from_, to_, value);
     }
+
+    return true;
   }
 
   /// @notice Function for mixed transfers.

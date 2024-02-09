@@ -13,16 +13,16 @@ describe("ERC404", function () {
     const units = 10n ** decimals
     const maxTotalSupplyERC721 = 100n
     const maxTotalSupplyERC20 = maxTotalSupplyERC721 * units
-    const initialOwner = signers[0].address
-    const initialMintRecipient = signers[0].address
+    const initialOwner = signers[0]
+    const initialMintRecipient = signers[0]
 
     const contract = await factory.deploy(
       name,
       symbol,
       decimals,
       maxTotalSupplyERC721,
-      initialOwner,
-      initialMintRecipient,
+      initialOwner.address,
+      initialMintRecipient.address,
     )
     await contract.waitForDeployment()
     const contractAddress = await contract.getAddress()
@@ -61,14 +61,15 @@ describe("ERC404", function () {
     const units = 10n ** decimals
     const maxTotalSupplyERC721 = 100n
     const maxTotalSupplyERC20 = maxTotalSupplyERC721 * units
-    const initialOwner = signers[0].address
+    const initialOwner = signers[0]
+    const initialMintRecipient = signers[0]
 
     const contract = await factory.deploy(
       name,
       symbol,
       decimals,
       maxTotalSupplyERC721,
-      initialOwner,
+      initialOwner.address,
     )
     await contract.waitForDeployment()
     const contractAddress = await contract.getAddress()
@@ -90,9 +91,45 @@ describe("ERC404", function () {
         units,
         maxTotalSupplyERC721,
         maxTotalSupplyERC20,
+        initialMintRecipient,
         initialOwner,
       },
       randomAddresses,
+    }
+  }
+
+  async function deployMinimalERC404WithERC20sAndERC721sMinted() {
+    const f = await loadFixture(deployMinimalERC404)
+
+    // Mint the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
+    await f.contract
+      .connect(f.signers[0])
+      .mintERC20(
+        f.deployConfig.initialMintRecipient.address,
+        f.deployConfig.maxTotalSupplyERC20,
+        true,
+      )
+
+    return f
+  }
+
+  async function deployMinimalERC404ForHavingAlreadyGrantedApprovalForAllTests() {
+    const f = await loadFixture(deployMinimalERC404WithERC20sAndERC721sMinted)
+
+    const msgSender = f.signers[0]
+    const intendedOperator = f.signers[1]
+    const secondOperator = f.signers[2]
+
+    // Add an approved for all operator for msgSender
+    await f.contract
+      .connect(msgSender)
+      .setApprovalForAll(intendedOperator.address, true)
+
+    return {
+      ...f,
+      msgSender,
+      intendedOperator,
+      secondOperator,
     }
   }
 
@@ -172,7 +209,9 @@ describe("ERC404", function () {
       expect(await f.contract.maxTotalSupplyERC721()).to.equal(
         f.deployConfig.maxTotalSupplyERC721,
       )
-      expect(await f.contract.owner()).to.equal(f.deployConfig.initialOwner)
+      expect(await f.contract.owner()).to.equal(
+        f.deployConfig.initialOwner.address,
+      )
       expect(await f.contract.maxTotalSupplyERC20()).to.equal(
         f.deployConfig.maxTotalSupplyERC20,
       )
@@ -183,11 +222,15 @@ describe("ERC404", function () {
 
       // Expect full supply of ERC20 tokens to be minted to the initial recipient.
       expect(
-        await f.contract.erc20BalanceOf(f.deployConfig.initialMintRecipient),
+        await f.contract.erc20BalanceOf(
+          f.deployConfig.initialMintRecipient.address,
+        ),
       ).to.equal(f.deployConfig.maxTotalSupplyERC20)
       // Expect 0 ERC721 tokens to be minted to the initial recipient, since 1) the user is on the whitelist and 2) the supply is minted using _mintERC20 with mintCorrespondingERC721s_ set to false.
       expect(
-        await f.contract.erc721BalanceOf(f.deployConfig.initialMintRecipient),
+        await f.contract.erc721BalanceOf(
+          f.deployConfig.initialMintRecipient.address,
+        ),
       ).to.equal(0n)
 
       // NFT minted count should be 0.
@@ -203,7 +246,7 @@ describe("ERC404", function () {
       const f = await loadFixture(deployExampleERC404)
 
       expect(
-        await f.contract.whitelist(f.deployConfig.initialMintRecipient),
+        await f.contract.whitelist(f.deployConfig.initialMintRecipient.address),
       ).to.equal(true)
     })
   })
@@ -784,9 +827,214 @@ describe("ERC404", function () {
     })
   })
 
-  describe("#transferFrom", function () {})
+  describe.skip("#transferFrom", function () {})
 
   describe.skip("#erc721BalanceOf", function () {})
 
   describe.skip("#erc20BalanceOf", function () {})
+
+  describe("#setApprovalForAll", function () {
+    context(
+      "Granting approval to a valid address besides themselves",
+      function () {
+        it("Allows a user to set an operator who has approval for all their ERC-721 tokens", async function () {
+          const f = await loadFixture(deployExampleERC404)
+
+          const msgSender = f.signers[0]
+          const intendedOperator = f.signers[1]
+
+          expect(
+            await f.contract.isApprovedForAll(
+              msgSender.address,
+              intendedOperator.address,
+            ),
+          ).to.equal(false)
+
+          // Add an operator for msgSender
+          await f.contract
+            .connect(msgSender)
+            .setApprovalForAll(intendedOperator.address, true)
+
+          expect(
+            await f.contract.isApprovedForAll(
+              msgSender.address,
+              intendedOperator.address,
+            ),
+          ).to.equal(true)
+        })
+
+        it("Allows a user to remove an operator's approval for all", async function () {
+          const f = await loadFixture(deployExampleERC404)
+
+          const msgSender = f.signers[0]
+          const intendedOperator = f.signers[1]
+
+          // Add an operator for msgSender
+          await f.contract
+            .connect(msgSender)
+            .setApprovalForAll(intendedOperator.address, true)
+
+          // Remove the operator
+          await f.contract
+            .connect(msgSender)
+            .setApprovalForAll(intendedOperator.address, false)
+
+          expect(
+            await f.contract.isApprovedForAll(
+              msgSender.address,
+              intendedOperator.address,
+            ),
+          ).to.equal(false)
+        })
+      },
+    )
+
+    context("Granting approval to themselves", function () {
+      it("Allows a user to set themselves as an operator who has approval for all their ERC-721 tokens", async function () {
+        const f = await loadFixture(deployExampleERC404)
+
+        const msgSender = f.signers[0]
+
+        expect(
+          await f.contract.isApprovedForAll(
+            msgSender.address,
+            msgSender.address,
+          ),
+        ).to.equal(false)
+
+        // Add an operator for msgSender
+        await f.contract
+          .connect(msgSender)
+          .setApprovalForAll(msgSender.address, true)
+
+        expect(
+          await f.contract.isApprovedForAll(
+            msgSender.address,
+            msgSender.address,
+          ),
+        ).to.equal(true)
+      })
+
+      it("Allows a user to remove their own approval for all", async function () {
+        const f = await loadFixture(deployExampleERC404)
+
+        const msgSender = f.signers[0]
+
+        // Add an operator for msgSender
+        await f.contract
+          .connect(msgSender)
+          .setApprovalForAll(msgSender.address, true)
+
+        // Remove the operator
+        await f.contract
+          .connect(msgSender)
+          .setApprovalForAll(msgSender.address, false)
+
+        expect(
+          await f.contract.isApprovedForAll(
+            msgSender.address,
+            msgSender.address,
+          ),
+        ).to.equal(false)
+      })
+    })
+
+    context("Granting approval to 0x0", function () {
+      it("Reverts if the user attempts to grant or revoke approval for all to 0x0", async function () {
+        const f = await loadFixture(deployExampleERC404)
+
+        const msgSender = f.signers[0]
+
+        await expect(
+          f.contract
+            .connect(msgSender)
+            .setApprovalForAll(ethers.ZeroAddress, true),
+        ).to.be.revertedWithCustomError(f.contract, "InvalidOperator")
+
+        await expect(
+          f.contract
+            .connect(msgSender)
+            .setApprovalForAll(ethers.ZeroAddress, false),
+        ).to.be.revertedWithCustomError(f.contract, "InvalidOperator")
+      })
+    })
+  })
+
+  describe("#setApproval", function () {
+    context("Granting approval for ERC-721 tokens", function () {
+      it("Allows a token owner to grant specific ERC-721 token approval to an operator", async function () {
+        const f = await loadFixture(
+          deployMinimalERC404WithERC20sAndERC721sMinted,
+        )
+
+        const msgSender = f.signers[0]
+        const intendedOperator = f.signers[1]
+
+        // Confirm that the token is owned by the grantor
+        expect(await f.contract.ownerOf(1n)).to.equal(msgSender.address)
+
+        // Add an operator for msgSender
+        await f.contract
+          .connect(msgSender)
+          .approve(intendedOperator.address, 1n)
+
+        const isApproved = await f.contract.getApproved(1n)
+
+        expect(isApproved).to.equal(intendedOperator.address)
+      })
+
+      it("Allows a token owner to revoke specific ERC-721 token approval from an operator", async function () {
+        const f = await loadFixture(
+          deployMinimalERC404WithERC20sAndERC721sMinted,
+        )
+
+        const msgSender = f.signers[0]
+        const intendedOperator = f.signers[1]
+
+        // Confirm that the token is owned by the grantor
+        expect(await f.contract.ownerOf(1n)).to.equal(msgSender.address)
+
+        // Add an operator for msgSender
+        await f.contract
+          .connect(msgSender)
+          .approve(intendedOperator.address, 1n)
+
+        let isApproved = await f.contract.getApproved(1n)
+
+        expect(isApproved).to.equal(intendedOperator.address)
+
+        // Remove the operator
+        await f.contract.connect(msgSender).approve(ethers.ZeroAddress, 1n)
+
+        isApproved = await f.contract.getApproved(1n)
+
+        expect(isApproved).to.equal(ethers.ZeroAddress)
+      })
+
+      context(
+        "Having already granted approval for all to a valid address",
+        function () {
+          it("Allows an approved operator to grant specific approval for any ERC-721 token owned by the grantor", async function () {
+            const f = await loadFixture(
+              deployMinimalERC404ForHavingAlreadyGrantedApprovalForAllTests,
+            )
+
+            // Confirm that the token is owned by the grantor
+            expect(await f.contract.ownerOf(1n)).to.equal(f.msgSender.address)
+
+            // Approve the operator to transfer the token
+            await f.contract
+              .connect(f.intendedOperator)
+              .approve(f.secondOperator.address, 1n)
+
+            expect(await f.contract.getApproved(1n)).to.equal(
+              f.secondOperator.address,
+            )
+          })
+        },
+      )
+    })
+
+    context("Granting approval for ERC-20 tokens", function () {})
+  })
 })

@@ -35,6 +35,8 @@ interface IERC404 {
   error AlreadyExists();
   error InvalidRecipient();
   error InvalidSender();
+  error InvalidSpender();
+  error InvalidOperator();
   error UnsafeRecipient();
   error NotWhitelisted();
   error Unauthorized();
@@ -49,7 +51,7 @@ interface IERC404 {
   function tokenURI(uint256 id_) external view returns (string memory);
   function approve(address spender_, uint256 valueOrId) external returns (bool);
   function setApprovalForAll(address operator_, bool approved_) external;
-  function transferFrom(address from_, address to, uint256 valueOrId_) external;
+  function transferFrom(address from_, address to, uint256 valueOrId_) external returns (bool);
   function transfer(address to_, uint256 amount_) external returns (bool);
   function safeTransferFrom(address from_, address to_, uint256 id_) external;
   function safeTransferFrom(
