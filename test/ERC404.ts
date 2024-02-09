@@ -781,7 +781,7 @@ describe("ERC404", function () {
     })
   })
 
-  describe("Minting and burning tokens (ERC20 & ERC721)", function () {
+  describe("#transferFrom", function () {
     it("Doesn't allow anyone to transfer from 0x0", async function () {
       const f = await loadFixture(deployExampleERC404)
 
@@ -792,17 +792,45 @@ describe("ERC404", function () {
           .transferFrom(ethers.ZeroAddress, f.signers[1].address, 1n),
       ).to.be.revertedWithCustomError(f.contract, "InvalidSender")
     })
+
+    // TODO More tests needed here, including testing that approvals work.
   })
 
   describe("#transfer", function () {
     it("Reverts when attempting to transfer anything to 0x0", async function () {
       const f = await loadFixture(deployExampleERC404)
 
-      // Attempt to transfer to 0x0. This will always fail as it's not possible for the 0x0 address to receive a transfer.
+      // Attempt to send 1 ERC-721 to 0x0.
       await expect(
         f.contract.connect(f.signers[0]).transfer(ethers.ZeroAddress, 1n),
       ).to.be.revertedWithCustomError(f.contract, "InvalidRecipient")
+
+      // Attempt to send 1 full token worth of ERC-20s to 0x0
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .transfer(ethers.ZeroAddress, f.deployConfig.units),
+      ).to.be.revertedWithCustomError(f.contract, "InvalidRecipient")
     })
+
+    it("Reverts when attempting to transfer a token the operator does not own", async function () {
+      const f = await loadFixture(deployMinimalERC404WithERC20sAndERC721sMinted)
+
+      const operator = f.signers[1]
+
+      // Confirm that the target token exists, and that it has a non-0x0 owner.
+      expect(await f.contract.ownerOf(1n)).to.not.equal(ethers.ZeroAddress)
+
+      // Confirm that the owner is not the operator we're going to use for the test.
+      expect(await f.contract.ownerOf(1n)).to.not.equal(operator.address)
+
+      // Attempt to send 1 ERC-721 to another address from a signer who doesn't own it.
+      await expect(
+        f.contract.connect(operator).transfer(f.signers[3].address, 1n),
+      ).to.be.revertedWithCustomError(f.contract, "Unauthorized")
+    })
+
+    // TODO more tests needed here, including testing that approvals work.
   })
 
   describe("#_setWhitelist", function () {
@@ -1379,6 +1407,95 @@ describe("ERC404", function () {
 
       // Expect the contract to still hold token id 97
       expect(await f.contract.ownerOf(97n)).to.equal(f.contractAddress)
+    })
+  })
+
+  describe("#_retrieveOrMintERC721", function () {
+    context("When the contract has no tokens in the queue", function () {
+      context("Contract ERC-721 balance is 0", async function () {
+        it("Mints a new full ERC-20 token + corresponding ERC-721 token", async function () {
+          const f = await loadFixture(deployMinimalERC404)
+
+          // Expect the contract to have no ERC-721 tokens
+          expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(
+            0n,
+          )
+          expect(await f.contract.erc721TokensBankedInQueue()).to.equal(0n)
+
+          expect(await f.contract.minted()).to.equal(0n)
+
+          // Mint a new full ERC-20 token + corresponding ERC-721 token
+          await f.contract.mintERC20(
+            f.signers[0].address,
+            f.deployConfig.units,
+            true,
+          )
+
+          expect(await f.contract.minted()).to.equal(1n)
+        })
+      })
+
+      context("Contract ERC-721 balance is > 0", async function () {
+        it("Mints a new full ERC-20 token + corresponding ERC-721 token", async function () {
+          const f = await loadFixture(deployMinimalERC404)
+
+          // Expect the contract to have no ERC-721 tokens
+          expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(
+            0n,
+          )
+          expect(await f.contract.erc721TokensBankedInQueue()).to.equal(0n)
+
+          expect(await f.contract.minted()).to.equal(0n)
+
+          // Mint a new full ERC-20 token + corresponding ERC-721 token
+          await f.contract.mintERC20(
+            f.signers[0].address,
+            f.deployConfig.units,
+            true,
+          )
+
+          expect(await f.contract.minted()).to.equal(1n)
+
+          // Transfer the ERC-721 token to the contract
+          await f.contract.connect(f.signers[0]).transfer(f.contractAddress, 1n)
+
+          // Expect the contract to have 1 ERC-721 token
+          expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(
+            1n,
+          )
+
+          // Expect the contract to have 0 ERC-721 token in the queue
+          expect(await f.contract.erc721TokensBankedInQueue()).to.equal(0n)
+
+          // Expect the contract to own token 1
+          expect(await f.contract.ownerOf(1n)).to.equal(f.contractAddress)
+
+          // Mint a new full ERC-20 token + corresponding ERC-721 token
+          await f.contract.mintERC20(
+            f.signers[0].address,
+            f.deployConfig.units,
+            true,
+          )
+
+          expect(await f.contract.minted()).to.equal(2n)
+
+          // Expect the contract to still own token 1
+          expect(await f.contract.ownerOf(1n)).to.equal(f.contractAddress)
+
+          // Expect the mint recipient to have have a balance of 1 ERC-721 token
+          expect(
+            await f.contract.erc721BalanceOf(f.signers[0].address),
+          ).to.equal(1n)
+
+          // Expect the contract to have an ERC-20 balance of 1 full token
+          expect(
+            await f.contract.erc20BalanceOf(f.signers[0].address),
+          ).to.equal(f.deployConfig.units)
+
+          // Expect the mint recipient to be the owner of token 2
+          expect(await f.contract.ownerOf(2n)).to.equal(f.signers[0].address)
+        })
+      })
     })
   })
 })

@@ -57,7 +57,7 @@ abstract contract ERC404 is IERC404 {
   /// @dev Tracks indices for the _owned mapping
   mapping(uint256 => uint256) internal _ownedIndex;
 
-  /// @dev Addresses whitelisted from minting / burning for gas savings (pairs, routers, etc)
+  /// @dev Addresses whitelisted from minting / banking for gas savings (pairs, routers, etc)
   mapping(address => bool) public whitelist;
 
   /// @dev Initial chain id for EIP-2612 support
@@ -119,6 +119,10 @@ abstract contract ERC404 is IERC404 {
     address owner_
   ) public view virtual returns (uint256) {
     return balanceOf[owner_];
+  }
+
+  function erc721TokensBankedInQueue() public view virtual returns (uint256) {
+    return _storedERC721Ids.length();
   }
 
   /// @notice tokenURI must be implemented by child contract
@@ -398,6 +402,7 @@ abstract contract ERC404 is IERC404 {
       if (totalSupply + value_ > maxTotalSupplyERC20) {
         revert MaxERC20SupplyReached();
       }
+      // Can be unchecked because the total supply check is done above.
       unchecked {
         totalSupply += value_;
       }
@@ -411,6 +416,7 @@ abstract contract ERC404 is IERC404 {
     }
 
     // Update the recipient's balance.
+    // Can be unchecked because the total supply check is done above.
     unchecked {
       balanceOf[to_] += value_;
     }
