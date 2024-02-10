@@ -1,7 +1,9 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-interface IERC404 {
+import {IERC165} from "../lib/interfaces/IERC165.sol";
+
+interface IERC404 is IERC165 {
   event ERC20Approval(address owner, address spender, uint256 value);
   event ApprovalForAll(
     address indexed owner,

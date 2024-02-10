@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {IERC404} from "./interfaces/IERC404.sol";
 import {ERC721Receiver} from "./lib/ERC721Receiver.sol";
 import {DoubleEndedQueue} from "./lib/DoubleEndedQueue.sol";
+import {IERC165} from "./lib/interfaces/IERC165.sol";
 
 abstract contract ERC404 is IERC404 {
   using DoubleEndedQueue for DoubleEndedQueue.Uint256Deque;
@@ -235,10 +236,7 @@ abstract contract ERC404 is IERC404 {
   /// @notice Function for ERC-20 transfers.
   /// @dev This function assumes the operator is attempting to transfer as ERC-20
   ///      given this function is only supported on the ERC-20 interface
-  function transfer(
-    address to_,
-    uint256 value_
-  ) public virtual returns (bool) {
+  function transfer(address to_, uint256 value_) public virtual returns (bool) {
     // Prevent burning tokens to 0x0.
     if (to_ == address(0)) {
       revert InvalidRecipient();
@@ -348,6 +346,14 @@ abstract contract ERC404 is IERC404 {
         : _computeDomainSeparator();
   }
 
+  function supportsInterface(
+    bytes4 interfaceId
+  ) public view virtual returns (bool) {
+    return
+      interfaceId == type(IERC404).interfaceId ||
+      interfaceId == type(IERC165).interfaceId;
+  }
+
   /// @notice Internal function to compute domain separator for EIP-2612 permits
   function _computeDomainSeparator() internal view virtual returns (bytes32) {
     return
@@ -375,7 +381,7 @@ abstract contract ERC404 is IERC404 {
     // Minting is a special case for which we should not check the balance of
     // the sender, and we should increase the total supply.
     if (from_ == address(0)) {
-        totalSupply += value_;
+      totalSupply += value_;
     } else {
       // Deduct value from sender's balance.
       balanceOf[from_] -= value_;
@@ -605,7 +611,9 @@ abstract contract ERC404 is IERC404 {
     whitelist[target_] = state_;
   }
 
-  function _getOwnerOf(uint256 id_) internal virtual view returns(address ownerOf_) {
+  function _getOwnerOf(
+    uint256 id_
+  ) internal view virtual returns (address ownerOf_) {
     uint256 data = _ownedData[id_];
 
     assembly {
@@ -617,13 +625,18 @@ abstract contract ERC404 is IERC404 {
     uint256 data = _ownedData[id_];
 
     assembly {
-      data := add(and(data, _BITMASK_OWNED_INDEX), and(owner_, _BITMASK_ADDRESS))
+      data := add(
+        and(data, _BITMASK_OWNED_INDEX),
+        and(owner_, _BITMASK_ADDRESS)
+      )
     }
 
     _ownedData[id_] = data;
   }
 
-  function _getOwnedIndex(uint256 id_) internal virtual view returns(uint256 ownedIndex_) {
+  function _getOwnedIndex(
+    uint256 id_
+  ) internal view virtual returns (uint256 ownedIndex_) {
     uint256 data = _ownedData[id_];
 
     assembly {
@@ -639,7 +652,10 @@ abstract contract ERC404 is IERC404 {
     }
 
     assembly {
-      data := add(and(data, _BITMASK_ADDRESS), and(shl(index_, 160), _BITMASK_OWNED_INDEX))
+      data := add(
+        and(data, _BITMASK_ADDRESS),
+        and(shl(index_, 160), _BITMASK_OWNED_INDEX)
+      )
     }
 
     _ownedData[id_] = data;
