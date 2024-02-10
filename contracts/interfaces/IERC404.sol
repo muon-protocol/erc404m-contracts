@@ -41,9 +41,6 @@ interface IERC404 {
   error NotWhitelisted();
   error Unauthorized();
   error InsufficientAllowance();
-  error InsufficientBalance();
-  error MaxERC20SupplyReached();
-  error MaxERC721SupplyReached();
   error DecimalsTooLow();
   error CannotRemoveFromWhitelist();
   error PermitDeadlineExpired();
@@ -53,10 +50,9 @@ interface IERC404 {
   function name() external view returns (string memory);
   function symbol() external view returns (string memory);
   function decimals() external view returns (uint8);
-  function maxTotalSupplyERC20() external view returns (uint256);
-  function maxTotalSupplyERC721() external view returns (uint256);
   function totalSupply() external view returns (uint256);
-  function minted() external view returns (uint256);
+  function erc20TotalSupply() external view returns (uint256);
+  function erc721TotalSupply() external view returns (uint256);
   function balanceOf(address owner_) external view returns (uint256);
   function erc721BalanceOf(address owner_) external view returns (uint256);
   function erc20BalanceOf(address owner_) external view returns (uint256);

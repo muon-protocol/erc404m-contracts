@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {ERC404} from "../erc404/ERC404.sol";
-import {ERC404MerkleClaim} from "../erc404/extensions/ERC404MerkleClaim.sol";
+import {ERC404} from "../ERC404.sol";
+import {ERC404MerkleClaim} from "../extensions/ERC404MerkleClaim.sol";
 
 contract ExampleERC404 is Ownable, ERC404, ERC404MerkleClaim {
   constructor(
@@ -15,12 +15,12 @@ contract ExampleERC404 is Ownable, ERC404, ERC404MerkleClaim {
     address initialOwner_,
     address initialMintRecipient_
   )
-    ERC404(name_, symbol_, decimals_, maxTotalSupplyERC721_)
+    ERC404(name_, symbol_, decimals_)
     Ownable(initialOwner_)
   {
     // Do not mint the ERC721s to the initial owner, as it's a waste of gas.
     _setWhitelist(initialMintRecipient_, true);
-    _mintERC20(initialMintRecipient_, maxTotalSupplyERC20, false);
+    _mintERC20(initialMintRecipient_, maxTotalSupplyERC721_ * units, false);
   }
 
   function tokenURI(uint256 id_) public pure override returns (string memory) {

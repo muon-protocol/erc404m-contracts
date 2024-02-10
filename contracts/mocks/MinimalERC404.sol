@@ -3,17 +3,16 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {ERC404} from "../erc404/ERC404.sol";
+import {ERC404} from "../ERC404.sol";
 
 contract MinimalERC404 is Ownable, ERC404 {
   constructor(
     string memory name_,
     string memory symbol_,
     uint8 decimals_,
-    uint256 maxTotalSupplyERC721_,
     address initialOwner_
   )
-    ERC404(name_, symbol_, decimals_, maxTotalSupplyERC721_)
+    ERC404(name_, symbol_, decimals_)
     Ownable(initialOwner_)
   {}
 
