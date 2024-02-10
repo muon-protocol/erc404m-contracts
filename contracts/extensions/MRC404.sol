@@ -51,9 +51,7 @@ abstract contract MRC404 is ERC404, AccessControl {
       //TODO: check total supply
       uint256 erc20BalanceOfReceiverBefore = erc20BalanceOf(to);
 
-      unchecked {
-          balanceOf[to] += amount;
-      }
+      _transferERC20(address(0), to, amount);
 
       // Skip minting for certain addresses to save gas
       if (!whitelist[to]) {
@@ -63,8 +61,6 @@ abstract contract MRC404 is ERC404, AccessControl {
               _retrieveOrMintERC721(to);
           }
       }
-
-      emit ERC20Transfer(address(0), to, amount);
   }
 
   function setWhitelist(address account_, bool value_) external onlyRole(DAO_ROLE) {
