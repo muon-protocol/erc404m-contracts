@@ -437,17 +437,11 @@ describe("ERC404", function () {
         await expect(mintTx)
           .to.emit(f.contract, "ERC721Transfer")
           .withArgs(ethers.ZeroAddress, f.signers[1].address, i)
-        await expect(mintTx)
-          .to.emit(f.contract, "Transfer")
-          .withArgs(ethers.ZeroAddress, f.signers[1].address, i)
       }
 
       // Check for ERC20Transfer mint events (from 0x0 to the recipient)
       await expect(mintTx)
         .to.emit(f.contract, "ERC20Transfer")
-        .withArgs(ethers.ZeroAddress, f.signers[1].address, value)
-      await expect(mintTx)
-        .to.emit(f.contract, "Transfer")
         .withArgs(ethers.ZeroAddress, f.signers[1].address, value)
 
       // 10 NFTs should have been minted
@@ -482,14 +476,6 @@ describe("ERC404", function () {
       const fractionalTransferTx = await f.contract
         .connect(f.signers[1])
         .transfer(f.signers[2].address, fractionalValueToTransferERC20)
-
-      await expect(fractionalTransferTx)
-        .to.emit(f.contract, "Transfer")
-        .withArgs(
-          f.signers[1].address,
-          f.signers[2].address,
-          fractionalValueToTransferERC20,
-        )
 
       await expect(fractionalTransferTx)
         .to.emit(f.contract, "ERC20Transfer")
@@ -556,13 +542,6 @@ describe("ERC404", function () {
         .connect(f.signers[2])
         .transfer(f.signers[1].address, fractionalValueToTransferERC20)
 
-      expect(regainFullTokenTx)
-        .to.emit(f.contract, "Transfer")
-        .withArgs(
-          f.signers[2].address,
-          f.signers[1].address,
-          fractionalValueToTransferERC20,
-        )
       expect(regainFullTokenTx)
         .to.emit(f.contract, "ERC20Transfer")
         .withArgs(
@@ -1126,14 +1105,6 @@ describe("ERC404", function () {
         expect(await f.contract.allowance(msgSender.address, spender.address)).to.eq(f.deployConfig.units);
 
         await expect(permitTx)
-          .to.emit(f.contract, "Approval")
-          .withArgs(
-            f.signers[0].address,
-            f.signers[1].address,
-            f.deployConfig.units,
-          )
-
-          await expect(permitTx)
           .to.emit(f.contract, "ERC20Approval")
           .withArgs(
             f.signers[0].address,
@@ -1175,14 +1146,6 @@ describe("ERC404", function () {
         ).to.equal(0n)
 
         await expect(erc721ApprovalTx)
-          .to.emit(f.contract, "Approval")
-          .withArgs(
-            f.signers[0].address,
-            f.signers[1].address,
-            1n,
-          )
-
-          await expect(erc721ApprovalTx)
           .to.emit(f.contract, "ERC721Approval")
           .withArgs(
             f.signers[0].address,
@@ -1283,14 +1246,6 @@ describe("ERC404", function () {
         )
 
         await expect(erc20ApprovalTx)
-          .to.emit(f.contract, "Approval")
-          .withArgs(
-            f.signers[0].address,
-            f.signers[1].address,
-            allowanceToSet,
-          )
-
-          await expect(erc20ApprovalTx)
           .to.emit(f.contract, "ERC20Approval")
           .withArgs(
             f.signers[0].address,

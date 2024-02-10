@@ -48,20 +48,23 @@ abstract contract ERC404 is IERC404 {
   /// @dev Approval for all in ERC-721 representation
   mapping(address => mapping(address => bool)) public isApprovedForAll;
 
-  /// @dev Owner of id in ERC-721 representation
-  mapping(uint256 => address) internal _ownerOf;
+  /// @dev Packed representation of ownerOf and owned indices
+  mapping(uint256 => uint256) internal _ownedData;
 
   /// @dev Array of owned ids in ERC-721 representation
   mapping(address => uint256[]) internal _owned;
-
-  /// @dev Tracks indices for the _owned mapping
-  mapping(uint256 => uint256) internal _ownedIndex;
 
   /// @dev Addresses whitelisted from minting / banking for gas savings (pairs, routers, etc)
   mapping(address => bool) public whitelist;
 
   /// @dev EIP-2612 nonces
   mapping(address => uint256) public nonces;
+
+  /// @dev Address bitmask for packed ownership data
+  uint256 private constant _BITMASK_ADDRESS = (1 << 160) - 1;
+
+  /// @dev Owned index bitmask for packed ownership data
+  uint256 private constant _BITMASK_OWNED_INDEX = ((1 << 96) - 1) << 160;
 
   constructor(string memory name_, string memory symbol_, uint8 decimals_) {
     name = name_;
@@ -83,7 +86,7 @@ abstract contract ERC404 is IERC404 {
   function ownerOf(
     uint256 id_
   ) public view virtual returns (address erc721Owner) {
-    erc721Owner = _ownerOf[id_];
+    erc721Owner = _getOwnerOf(id_);
 
     // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
     if (id_ > _minted || id_ == 0 || erc721Owner == address(0)) {
@@ -137,7 +140,7 @@ abstract contract ERC404 is IERC404 {
     if (valueOrId_ <= _minted && valueOrId_ > 0) {
       // Intention is to approve as ERC-721 token (id).
       uint256 id = valueOrId_;
-      address erc721Owner = _ownerOf[id];
+      address erc721Owner = _getOwnerOf(id);
 
       if (
         msg.sender != erc721Owner && !isApprovedForAll[erc721Owner][msg.sender]
@@ -147,7 +150,6 @@ abstract contract ERC404 is IERC404 {
 
       getApproved[id] = spender_;
 
-      emit Approval(erc721Owner, spender_, id);
       emit ERC721Approval(erc721Owner, spender_, id);
     } else {
       // Prevent granting 0x0 an ERC-20 allowance.
@@ -159,7 +161,6 @@ abstract contract ERC404 is IERC404 {
       uint256 value = valueOrId_;
       allowance[msg.sender][spender_] = value;
 
-      emit Approval(msg.sender, spender_, value);
       emit ERC20Approval(msg.sender, spender_, value);
     }
 
@@ -198,7 +199,7 @@ abstract contract ERC404 is IERC404 {
       // Intention is to transfer as ERC-721 token (id).
       uint256 id = valueOrId_;
 
-      if (from_ != _ownerOf[id]) {
+      if (from_ != _getOwnerOf(id)) {
         revert Unauthorized();
       }
 
@@ -225,7 +226,7 @@ abstract contract ERC404 is IERC404 {
       }
 
       // Transferring ERC-20s directly requires the _transfer function.
-      _transfer(from_, to_, value);
+      _transferERC20WithERC721(from_, to_, value);
     }
 
     return true;
@@ -244,7 +245,7 @@ abstract contract ERC404 is IERC404 {
     }
 
     // Transferring ERC-20s directly requires the _transfer function.
-    return _transfer(msg.sender, to_, value_);
+    return _transferERC20WithERC721(msg.sender, to_, value_);
   }
 
   /// @notice Function for ERC-721 transfers with contract support.
@@ -336,7 +337,6 @@ abstract contract ERC404 is IERC404 {
       allowance[recoveredAddress][spender_] = value_;
     }
 
-    emit Approval(owner_, spender_, value_);
     emit ERC20Approval(owner_, spender_, value_);
   }
 
@@ -387,7 +387,6 @@ abstract contract ERC404 is IERC404 {
       balanceOf[to_] += value_;
     }
 
-    emit Transfer(from_, to_, value_);
     emit ERC20Transfer(from_, to_, value_);
   }
 
@@ -407,10 +406,11 @@ abstract contract ERC404 is IERC404 {
       uint256 updatedId = _owned[from_][_owned[from_].length - 1];
 
       if (updatedId != id_) {
+        uint256 updatedIndex = _getOwnedIndex(id_);
         // update _owned for sender
-        _owned[from_][_ownedIndex[id_]] = updatedId;
+        _owned[from_][updatedIndex] = updatedId;
         // update index for the moved id
-        _ownedIndex[updatedId] = _ownedIndex[id_];
+        _setOwnedIndex(updatedId, updatedIndex);
       }
 
       // pop
@@ -419,22 +419,20 @@ abstract contract ERC404 is IERC404 {
 
     if (to_ != address(0)) {
       // Update owner of the token to the new owner.
-      _ownerOf[id_] = to_;
+      _setOwnerOf(id_, to_);
       // Push token onto the new owner's stack.
       _owned[to_].push(id_);
       // Update index for new owner's stack.
-      _ownedIndex[id_] = _owned[to_].length - 1;
+      _setOwnedIndex(id_, _owned[to_].length - 1);
     } else {
-      delete _ownerOf[id_];
-      delete _ownedIndex[id_];
+      delete _ownedData[id_];
     }
 
-    emit Transfer(from_, to_, id_);
     emit ERC721Transfer(from_, to_, id_);
   }
 
   /// @notice Internal function for ERC-20 transfers. Also handles any ERC-721 transfers that may be required.
-  function _transfer(
+  function _transferERC20WithERC721(
     address from_,
     address to_,
     uint256 value_
@@ -567,7 +565,7 @@ abstract contract ERC404 is IERC404 {
       id = _minted;
     }
 
-    address erc721Owner = _ownerOf[id];
+    address erc721Owner = _getOwnerOf(id);
 
     // The token should not already belong to anyone besides 0x0 or this contract.
     // If it does, something is wrong, as this should never happen.
@@ -605,5 +603,45 @@ abstract contract ERC404 is IERC404 {
       revert CannotRemoveFromWhitelist();
     }
     whitelist[target_] = state_;
+  }
+
+  function _getOwnerOf(uint256 id_) internal virtual view returns(address ownerOf_) {
+    uint256 data = _ownedData[id_];
+
+    assembly {
+      ownerOf_ := and(data, _BITMASK_ADDRESS)
+    }
+  }
+
+  function _setOwnerOf(uint256 id_, address owner_) internal virtual {
+    uint256 data = _ownedData[id_];
+
+    assembly {
+      data := add(and(data, _BITMASK_OWNED_INDEX), and(owner_, _BITMASK_ADDRESS))
+    }
+
+    _ownedData[id_] = data;
+  }
+
+  function _getOwnedIndex(uint256 id_) internal virtual view returns(uint256 ownedIndex_) {
+    uint256 data = _ownedData[id_];
+
+    assembly {
+      ownedIndex_ := shl(data, 160)
+    }
+  }
+
+  function _setOwnedIndex(uint256 id_, uint256 index_) internal virtual {
+    uint256 data = _ownedData[id_];
+
+    if (index_ > _BITMASK_OWNED_INDEX >> 160) {
+      revert OwnedIndexOverflow();
+    }
+
+    assembly {
+      data := add(and(data, _BITMASK_ADDRESS), and(shl(index_, 160), _BITMASK_OWNED_INDEX))
+    }
+
+    _ownedData[id_] = data;
   }
 }

@@ -2,11 +2,6 @@
 pragma solidity ^0.8.20;
 
 interface IERC404 {
-  event Approval(
-    address indexed owner,
-    address indexed spender,
-    uint256 valueOrId
-  );
   event ERC20Approval(address owner, address spender, uint256 value);
   event ApprovalForAll(
     address indexed owner,
@@ -17,11 +12,6 @@ interface IERC404 {
     address indexed owner,
     address indexed spender,
     uint256 indexed id
-  );
-  event Transfer(
-    address indexed from,
-    address indexed to,
-    uint256 indexed valueOrId
   );
   event ERC20Transfer(address indexed from, address indexed to, uint256 amount);
   event ERC721Transfer(
@@ -46,6 +36,7 @@ interface IERC404 {
   error PermitDeadlineExpired();
   error InvalidSigner();
   error InvalidApproval();
+  error OwnedIndexOverflow();
 
   function name() external view returns (string memory);
   function symbol() external view returns (string memory);
