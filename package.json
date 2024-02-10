@@ -1,5 +1,5 @@
 {
-  "name": "ERC404",
+  "name": "mrc404",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.4",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.10",
