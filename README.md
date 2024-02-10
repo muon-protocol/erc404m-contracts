@@ -1,6 +1,6 @@
 # NOTICE (EXPERIMENTAL – NOT PRODUCTION READY)
 
-> 🚨🚨 This repo is an early iteration of updates to, standardization and testing of ERC404. **It is not intended to be used in production.** 🚨🚨
+> 🚨🚨 This repo is an early iteration a more robust ERC404 implementation. **It is not intended to be used in production.** 🚨🚨
 > Please refer to [this repository](https://github.com/Pandora-Labs-Org/erc404-legacy) for the version of ERC404 that was released with Pandora.
 
 # ERC404
