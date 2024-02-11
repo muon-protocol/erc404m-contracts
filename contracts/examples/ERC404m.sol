@@ -9,12 +9,12 @@ contract ERC404m is MRC404 {
   string public baseTokenURI;
 
   constructor(
-      address _initialAdmin_,
-      address _initialMintRecipient,
       string memory _baseTokenURI
-  ) MRC404("Multichain ERC404 by muon", "ERC404m", 18, _initialAdmin_) {
+  ) MRC404("Muon ERC404", "ERC404m", 18, msg.sender) {
       baseTokenURI = _baseTokenURI;
-      _setWhitelist(_initialMintRecipient, true);
+      _setWhitelist(msg.sender, true);
+      _grantRole(MINTER_ROLE, msg.sender);
+      _grantRole(DAO_ROLE, msg.sender);
   }
 
   function setBaseTokenURI(string memory _tokenURI) external onlyRole(DAO_ROLE) {

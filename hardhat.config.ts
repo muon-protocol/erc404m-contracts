@@ -58,6 +58,18 @@ const networks = {
     chainId: 56,
     accounts: [process.env.PRIVATE_KEY || missing_privateKey()],
   },
+  optimism: {
+    url: "https://rpc.ankr.com/optimism", 
+    //${process.env.ANKR_KEY}`,
+    chainId: 10,
+    accounts: [process.env.PRIVATE_KEY || missing_privateKey()]
+  },
+  arb: {
+    url: "https://arb1.arbitrum.io/rpc", 
+    //${process.env.ANKR_KEY}`,
+    chainId: 42161,
+    accounts: [process.env.PRIVATE_KEY || missing_privateKey()]
+  }
 }
 
 function missing_privateKey() {
@@ -137,6 +149,8 @@ module.exports = {
       ftm: process.env.FTMSCAN_KEY,
       polygon: process.env.POLYGONSCAN_KEY,
       bsc: process.env.BSCSCAN_KEY,
+      optimisticEthereum: OPT_SCAN,
+      arbitrumOne: ARB_SCAN
     },
     customChains: [
       {

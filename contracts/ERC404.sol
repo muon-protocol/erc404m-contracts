@@ -67,6 +67,9 @@ abstract contract ERC404 is IERC404 {
   /// @dev Owned index bitmask for packed ownership data
   uint256 private constant _BITMASK_OWNED_INDEX = ((1 << 96) - 1) << 160;
 
+  // to make it compatible with ERC721
+  event Transfer(address indexed from, address indexed to, uint256 indexed id);
+
   constructor(string memory name_, string memory symbol_, uint8 decimals_) {
     name = name_;
     symbol = symbol_;
@@ -434,6 +437,7 @@ abstract contract ERC404 is IERC404 {
       delete _ownedData[id_];
     }
 
+    emit Transfer(from_, to_, id_);
     emit ERC721Transfer(from_, to_, id_);
   }
 
