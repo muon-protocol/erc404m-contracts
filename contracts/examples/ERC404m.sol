@@ -14,7 +14,6 @@ contract ERC404m is MRC404 {
       baseTokenURI = _baseTokenURI;
       _setWhitelist(msg.sender, true);
       _grantRole(MINTER_ROLE, msg.sender);
-      _grantRole(DAO_ROLE, msg.sender);
   }
 
   function setBaseTokenURI(string memory _tokenURI) external onlyRole(DAO_ROLE) {
