@@ -10,11 +10,8 @@ async function main() {
 
   console.log(`contract deployed to ${contract.address}`)
 
-  const booster = await ethers.deployContract("ERC404m", params);
-  await booster.deployed();
-  console.log("muonNodeManager deployed to:", booster.address);
   await hre.run("verify:verify", {
-    address: booster.address,
+    address: contract.address,
     contract: "contracts/examples/ERC404m.sol:ERC404m",
     constructorArguments: params,
   });
