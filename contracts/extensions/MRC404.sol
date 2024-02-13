@@ -34,6 +34,7 @@ abstract contract MRC404 is ERC404, AccessControl {
       uint256 erc20BalanceOfSenderBefore = erc20BalanceOf(from);
 
       balanceOf[from] -= amount;
+      totalSupply -= amount;
 
       // Skip burn for certain addresses to save gas
       if (!whitelist[from]) {
@@ -48,7 +49,6 @@ abstract contract MRC404 is ERC404, AccessControl {
   }
 
   function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
-      //TODO: check total supply
       uint256 erc20BalanceOfReceiverBefore = erc20BalanceOf(to);
 
       _transferERC20(address(0), to, amount);
