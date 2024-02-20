@@ -85,8 +85,9 @@ contract ERC404m is MRC404 {
     uint256[] memory nftIds = _mint(to, amount);
     uint8[] memory rarities = decodeData(data);
     uint256 nftIdsLength = nftIds.length;
+    uint256 raritiesLength = rarities.length;
     for (uint256 i = 0; i < nftIdsLength; i++) {
-      if (rarities[i] != 0) {
+      if (i < raritiesLength && rarities[i] != 0) {
         rarityValues[nftIds[i]] = rarities[i];
       } else {
         rarityValues[nftIds[i]] = getRarity(nftIds[i]);
@@ -102,6 +103,12 @@ contract ERC404m is MRC404 {
   function decodeData(
     bytes calldata data
   ) public pure returns (uint8[] memory rarities) {
-    rarities = abi.decode(data, (uint8[]));
+    bytes[] memory bytesArray = abi.decode(data, (bytes[]));
+    uint256 length = bytesArray.length;
+
+    rarities = new uint8[](length);
+    for (uint256 i = 0; i < length; i++) {
+      rarities[i] = abi.decode(bytesArray[i], (uint8));
+    }
   }
 }

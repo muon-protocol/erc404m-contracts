@@ -80,6 +80,7 @@ abstract contract MRC404 is ERC404, AccessControl {
     if (!whitelist[from]) {
       uint256 tokensToWithdrawAndStore = (erc20BalanceOfSenderBefore / units) -
         (balanceOf[from] / units);
+      nftIds = new uint256[](tokensToWithdrawAndStore);
       for (uint256 i = 0; i < tokensToWithdrawAndStore; i++) {
         nftIds[i] = _withdrawAndStoreERC721(from);
       }
@@ -100,6 +101,7 @@ abstract contract MRC404 is ERC404, AccessControl {
     if (!whitelist[to]) {
       uint256 tokensToRetrieveOrMint = (balanceOf[to] / units) -
         (erc20BalanceOfReceiverBefore / units);
+      nftIds = new uint256[](tokensToRetrieveOrMint);
       for (uint256 i = 0; i < tokensToRetrieveOrMint; i++) {
         nftIds[i] = _retrieveOrMintERC721(to);
       }
