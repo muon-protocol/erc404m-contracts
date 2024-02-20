@@ -558,7 +558,9 @@ abstract contract ERC404 is IERC404 {
   /// @notice Internal function for ERC-721 minting and retrieval from the bank.
   /// @dev This function will allow minting of new ERC-721s up to the total fractional supply. It will
   ///      first try to pull from the bank, and if the bank is empty, it will mint a new token.
-  function _retrieveOrMintERC721(address to_) internal virtual {
+  function _retrieveOrMintERC721(
+    address to_
+  ) internal virtual returns (uint256) {
     if (to_ == address(0)) {
       revert InvalidRecipient();
     }
@@ -585,11 +587,14 @@ abstract contract ERC404 is IERC404 {
 
     // Transfer the token to the recipient, either transferring from the contract's bank or minting.
     _transferERC721(erc721Owner, to_, id);
+    return id;
   }
 
   /// @notice Internal function for ERC-721 deposits to bank (this contract).
   /// @dev This function will allow depositing of ERC-721s to the bank, which can be retrieved by future minters.
-  function _withdrawAndStoreERC721(address from_) internal virtual {
+  function _withdrawAndStoreERC721(
+    address from_
+  ) internal virtual returns (uint256) {
     if (from_ == address(0)) {
       revert InvalidSender();
     }
@@ -602,6 +607,7 @@ abstract contract ERC404 is IERC404 {
 
     // Record the token in the contract's bank queue.
     _storedERC721Ids.pushFront(id);
+    return id;
   }
 
   /// @notice Initialization function to set pairs / etc, saving gas by avoiding mint / burn on unnecessary targets

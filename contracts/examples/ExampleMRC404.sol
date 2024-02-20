@@ -21,4 +21,19 @@ contract ExampleMRC404 is MRC404 {
   function tokenURI(uint256 id_) public pure override returns (string memory) {
     return string.concat("https://example.com/token/", Strings.toString(id_));
   }
+
+  function encodeData(uint256 id) public view override returns (bytes memory) {}
+
+  function burnFrom(
+    address from,
+    uint256 amount
+  ) public override returns (bytes memory nftData) {}
+
+  function mint(
+    address to,
+    uint256 amount,
+    bytes calldata data
+  ) public override returns (uint256[] memory nftIds) {
+    nftIds = _mint(to, amount);
+  }
 }
