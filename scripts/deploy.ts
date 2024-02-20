@@ -1,18 +1,24 @@
-import { ethers } from "hardhat"
+import { ethers, run } from "hardhat"
+
+
+function sleep(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
 
 async function main() {
   var params = [
     "https://erc404-metadata.muon.net/"
   ];
-  const contract = await ethers.deployContract("ERC404m", params)
+  const contract = await ethers.deployContract("ERC404m", params);
 
-  await contract.deployed()
+  await contract.deployed();
 
-  console.log(`contract deployed to ${contract.address}`)
+  console.log(`contract deployed to ${contract.address}`);
+  
+  await sleep(20000);
 
-  await hre.run("verify:verify", {
+  await run("verify:verify", {
     address: contract.address,
-    contract: "contracts/examples/ERC404m.sol:ERC404m",
     constructorArguments: params,
   });
 }
