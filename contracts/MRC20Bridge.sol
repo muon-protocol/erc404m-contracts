@@ -3,11 +3,22 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "./interfaces/IMRC404.sol";
 import "./lib/interfaces/IMuonClient.sol";
 
 contract MRC20Bridge is AccessControl {
   bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+  using MessageHashUtils for bytes32;
+
+  struct ClaimParams {
+    address user;
+    uint256 amount;
+    uint256 fromChain;
+    uint256 toChain;
+    uint256 tokenId;
+    uint256 txId;
+  }
 
   /**
    * @dev `AddToken` and `setSideContract`
@@ -24,6 +35,7 @@ contract MRC20Bridge is AccessControl {
   uint256 public muonAppId;
   IMuonClient.PublicKey public muonPublicKey;
   IMuonClient public muon;
+  address public muonValidGateway;
 
   uint256 public network; // current chain id
 
@@ -114,46 +126,47 @@ contract MRC20Bridge is AccessControl {
   }
 
   function claim(
-    address user,
-    uint256 amount,
-    uint256 fromChain,
-    uint256 toChain,
-    uint256 tokenId,
-    uint256 txId,
+    ClaimParams memory params,
     bytes calldata nftData,
     bytes calldata reqId,
-    IMuonClient.SchnorrSign calldata signature
+    IMuonClient.SchnorrSign calldata signature,
+    bytes calldata gatewaySignature
   ) external {
-    require(toChain == network, "Bridge: toChain should equal network");
+    require(params.toChain == network, "Bridge: toChain should equal network");
 
     {
       bytes32 hash = keccak256(
         abi.encodePacked(
           abi.encodePacked(muonAppId),
           abi.encodePacked(reqId),
-          abi.encodePacked(txId, tokenId, amount),
-          abi.encodePacked(fromChain, toChain),
-          abi.encodePacked(user),
+          abi.encodePacked(params.txId, params.tokenId, params.amount),
+          abi.encodePacked(params.fromChain, params.toChain),
+          abi.encodePacked(params.user),
           abi.encodePacked(nftData)
         )
       );
-
-      require(
-        muon.muonVerify(reqId, uint256(hash), signature, muonPublicKey),
-        "Bridge: not verified"
-      );
+      verifyMuonSig(reqId, hash, signature, gatewaySignature);
     }
 
-    require(!claimedTxs[fromChain][txId], "Bridge: already claimed");
-    require(tokens[tokenId] != address(0), "Bridge: unknown tokenId");
+    require(
+      !claimedTxs[params.fromChain][params.txId],
+      "Bridge: already claimed"
+    );
+    require(tokens[params.tokenId] != address(0), "Bridge: unknown tokenId");
 
-    claimedTxs[fromChain][txId] = true;
-    amount -= (amount * fee) / feeScale;
-    IMRC404 token = IMRC404(tokens[tokenId]);
+    claimedTxs[params.fromChain][params.txId] = true;
+    params.amount -= (params.amount * fee) / feeScale;
+    IMRC404 token = IMRC404(tokens[params.tokenId]);
 
-    token.mint(user, amount, nftData);
+    token.mint(params.user, params.amount, nftData);
 
-    emit Claim(user, txId, fromChain, amount, tokenId);
+    emit Claim(
+      params.user,
+      params.txId,
+      params.fromChain,
+      params.amount,
+      params.tokenId
+    );
   }
 
   /* ========== VIEWS ========== */
@@ -179,7 +192,8 @@ contract MRC20Bridge is AccessControl {
       uint256 amount,
       uint256 fromChain,
       uint256 toChain,
-      address user
+      address user,
+      bytes memory nftData
     )
   // uint256 timestamp
   {
@@ -189,6 +203,7 @@ contract MRC20Bridge is AccessControl {
     fromChain = network;
     toChain = txs[_txId].toChain;
     user = txs[_txId].user;
+    nftData = txs[_txId].nftData;
   }
 
   function getExecutingChainID() public view returns (uint256) {
@@ -246,6 +261,12 @@ contract MRC20Bridge is AccessControl {
     muonPublicKey = _muonPublicKey;
   }
 
+  function setMuonGateway(
+    address _gatewayAddress
+  ) external onlyRole(ADMIN_ROLE) {
+    muonValidGateway = _gatewayAddress;
+  }
+
   function setFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     fee = _fee;
   }
@@ -264,5 +285,27 @@ contract MRC20Bridge is AccessControl {
     uint256 _amount
   ) external onlyRole(ADMIN_ROLE) {
     IMRC404(_tokenAddr).transfer(_to, _amount);
+  }
+
+  function verifyMuonSig(
+    bytes calldata reqId,
+    bytes32 hash,
+    IMuonClient.SchnorrSign calldata sign,
+    bytes calldata gatewaySignature
+  ) internal {
+    require(
+      muon.muonVerify(reqId, uint256(hash), sign, muonPublicKey),
+      "Invalid signature!"
+    );
+
+    if (muonValidGateway != address(0)) {
+      hash = hash.toEthSignedMessageHash();
+      address gatewaySignatureSigner = hash.recover(gatewaySignature);
+
+      require(
+        gatewaySignatureSigner == muonValidGateway,
+        "Gateway is not valid"
+      );
+    }
   }
 }
