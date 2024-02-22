@@ -8,8 +8,10 @@ import "./interfaces/IMRC404.sol";
 import "./lib/interfaces/IMuonClient.sol";
 
 contract MRC20Bridge is AccessControl {
-  bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+  using ECDSA for bytes32;
   using MessageHashUtils for bytes32;
+
+  bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
   struct ClaimParams {
     address user;
@@ -29,8 +31,6 @@ contract MRC20Bridge is AccessControl {
    * a Muon app and let the deployer add new tokens to the MTC20Bridges.
    */
   bytes32 public constant TOKEN_ADDER_ROLE = keccak256("TOKEN_ADDER");
-
-  using ECDSA for bytes32;
 
   uint256 public muonAppId;
   IMuonClient.PublicKey public muonPublicKey;
@@ -133,6 +133,11 @@ contract MRC20Bridge is AccessControl {
     bytes calldata gatewaySignature
   ) external {
     require(params.toChain == network, "Bridge: toChain should equal network");
+    require(
+      !claimedTxs[params.fromChain][params.txId],
+      "Bridge: already claimed"
+    );
+    require(tokens[params.tokenId] != address(0), "Bridge: unknown tokenId");
 
     {
       bytes32 hash = keccak256(
@@ -147,12 +152,6 @@ contract MRC20Bridge is AccessControl {
       );
       verifyMuonSig(reqId, hash, signature, gatewaySignature);
     }
-
-    require(
-      !claimedTxs[params.fromChain][params.txId],
-      "Bridge: already claimed"
-    );
-    require(tokens[params.tokenId] != address(0), "Bridge: unknown tokenId");
 
     claimedTxs[params.fromChain][params.txId] = true;
     params.amount -= (params.amount * fee) / feeScale;
