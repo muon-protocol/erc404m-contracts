@@ -8,8 +8,10 @@ import "./interfaces/IMRC404.sol";
 import "./lib/interfaces/IMuonClient.sol";
 
 contract MRC20Bridge is AccessControl {
-  bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+  using ECDSA for bytes32;
   using MessageHashUtils for bytes32;
+
+  bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
   struct ClaimParams {
     address user;
@@ -29,8 +31,6 @@ contract MRC20Bridge is AccessControl {
    * a Muon app and let the deployer add new tokens to the MTC20Bridges.
    */
   bytes32 public constant TOKEN_ADDER_ROLE = keccak256("TOKEN_ADDER");
-
-  using ECDSA for bytes32;
 
   uint256 public muonAppId;
   IMuonClient.PublicKey public muonPublicKey;
@@ -70,23 +70,19 @@ contract MRC20Bridge is AccessControl {
   // source chain => (tx id => false/true)
   mapping(uint256 => mapping(uint256 => bool)) public claimedTxs;
 
-  uint256 public fee;
-  uint256 public feeScale = 1e6;
-
   /* ========== CONSTRUCTOR ========== */
 
   constructor(
     uint256 _muonAppId,
     IMuonClient.PublicKey memory _muonPublicKey,
-    address _muon,
-    uint256 _fee
+    address _muon
   ) {
     network = getExecutingChainID();
     muonAppId = _muonAppId;
     muonPublicKey = _muonPublicKey;
     muon = IMuonClient(_muon);
-    fee = _fee;
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
   }
 
   /* ========== PUBLIC FUNCTIONS ========== */
@@ -133,6 +129,11 @@ contract MRC20Bridge is AccessControl {
     bytes calldata gatewaySignature
   ) external {
     require(params.toChain == network, "Bridge: toChain should equal network");
+    require(
+      !claimedTxs[params.fromChain][params.txId],
+      "Bridge: already claimed"
+    );
+    require(tokens[params.tokenId] != address(0), "Bridge: unknown tokenId");
 
     {
       bytes32 hash = keccak256(
@@ -148,14 +149,7 @@ contract MRC20Bridge is AccessControl {
       verifyMuonSig(reqId, hash, signature, gatewaySignature);
     }
 
-    require(
-      !claimedTxs[params.fromChain][params.txId],
-      "Bridge: already claimed"
-    );
-    require(tokens[params.tokenId] != address(0), "Bridge: unknown tokenId");
-
     claimedTxs[params.fromChain][params.txId] = true;
-    params.amount -= (params.amount * fee) / feeScale;
     IMRC404 token = IMRC404(tokens[params.tokenId]);
 
     token.mint(params.user, params.amount, nftData);
@@ -265,10 +259,6 @@ contract MRC20Bridge is AccessControl {
     address _gatewayAddress
   ) external onlyRole(ADMIN_ROLE) {
     muonValidGateway = _gatewayAddress;
-  }
-
-  function setFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
-    fee = _fee;
   }
 
   function emergencyWithdrawETH(

@@ -35,7 +35,7 @@ abstract contract ERC404 is IERC404 {
   uint256 internal immutable INITIAL_CHAIN_ID;
 
   /// @dev Initial domain separator for EIP-2612 support
-  bytes32 internal immutable INITIAL_DOMAIN_SEPARATOR;
+  // bytes32 internal immutable INITIAL_DOMAIN_SEPARATOR;
 
   /// @dev Balance of user in ERC-20 representation
   mapping(address => uint256) public balanceOf;
@@ -83,7 +83,7 @@ abstract contract ERC404 is IERC404 {
 
     // EIP-2612 initialization
     INITIAL_CHAIN_ID = block.chainid;
-    INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
+    // INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
   }
 
   /// @notice Function to find owner of a given ERC-721 token
@@ -124,9 +124,9 @@ abstract contract ERC404 is IERC404 {
     return _minted;
   }
 
-  function erc721TokensBankedInQueue() public view virtual returns (uint256) {
-    return _storedERC721Ids.length();
-  }
+  // function erc721TokensBankedInQueue() public view virtual returns (uint256) {
+  //   return _storedERC721Ids.length();
+  // }
 
   /// @notice tokenURI must be implemented by child contract
   function tokenURI(uint256 id_) public view virtual returns (string memory);
@@ -285,69 +285,69 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Function for EIP-2612 permits
-  function permit(
-    address owner_,
-    address spender_,
-    uint256 value_,
-    uint256 deadline_,
-    uint8 v_,
-    bytes32 r_,
-    bytes32 s_
-  ) public virtual {
-    if (deadline_ < block.timestamp) {
-      revert PermitDeadlineExpired();
-    }
+  // function permit(
+  //   address owner_,
+  //   address spender_,
+  //   uint256 value_,
+  //   uint256 deadline_,
+  //   uint8 v_,
+  //   bytes32 r_,
+  //   bytes32 s_
+  // ) public virtual {
+  //   if (deadline_ < block.timestamp) {
+  //     revert PermitDeadlineExpired();
+  //   }
 
-    if (value_ <= _minted && value_ > 0) {
-      revert InvalidApproval();
-    }
+  //   if (value_ <= _minted && value_ > 0) {
+  //     revert InvalidApproval();
+  //   }
 
-    if (spender_ == address(0)) {
-      revert InvalidSpender();
-    }
+  //   if (spender_ == address(0)) {
+  //     revert InvalidSpender();
+  //   }
 
-    unchecked {
-      address recoveredAddress = ecrecover(
-        keccak256(
-          abi.encodePacked(
-            "\x19\x01",
-            DOMAIN_SEPARATOR(),
-            keccak256(
-              abi.encode(
-                keccak256(
-                  "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
-                ),
-                owner_,
-                spender_,
-                value_,
-                nonces[owner_]++,
-                deadline_
-              )
-            )
-          )
-        ),
-        v_,
-        r_,
-        s_
-      );
+  //   unchecked {
+  //     address recoveredAddress = ecrecover(
+  //       keccak256(
+  //         abi.encodePacked(
+  //           "\x19\x01",
+  //           DOMAIN_SEPARATOR(),
+  //           keccak256(
+  //             abi.encode(
+  //               keccak256(
+  //                 "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+  //               ),
+  //               owner_,
+  //               spender_,
+  //               value_,
+  //               nonces[owner_]++,
+  //               deadline_
+  //             )
+  //           )
+  //         )
+  //       ),
+  //       v_,
+  //       r_,
+  //       s_
+  //     );
 
-      if (recoveredAddress == address(0) || recoveredAddress != owner_) {
-        revert InvalidSigner();
-      }
+  //     if (recoveredAddress == address(0) || recoveredAddress != owner_) {
+  //       revert InvalidSigner();
+  //     }
 
-      allowance[recoveredAddress][spender_] = value_;
-    }
+  //     allowance[recoveredAddress][spender_] = value_;
+  //   }
 
-    emit ERC20Approval(owner_, spender_, value_);
-  }
+  //   emit ERC20Approval(owner_, spender_, value_);
+  // }
 
   /// @notice Returns domain initial domain separator, or recomputes if chain id is not equal to initial chain id
-  function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
-    return
-      block.chainid == INITIAL_CHAIN_ID
-        ? INITIAL_DOMAIN_SEPARATOR
-        : _computeDomainSeparator();
-  }
+  // function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
+  //   return
+  //     block.chainid == INITIAL_CHAIN_ID
+  //       ? INITIAL_DOMAIN_SEPARATOR
+  //       : _computeDomainSeparator();
+  // }
 
   function supportsInterface(
     bytes4 interfaceId
@@ -358,20 +358,20 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Internal function to compute domain separator for EIP-2612 permits
-  function _computeDomainSeparator() internal view virtual returns (bytes32) {
-    return
-      keccak256(
-        abi.encode(
-          keccak256(
-            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-          ),
-          keccak256(bytes(name)),
-          keccak256("1"),
-          block.chainid,
-          address(this)
-        )
-      );
-  }
+  // function _computeDomainSeparator() internal view virtual returns (bytes32) {
+  //   return
+  //     keccak256(
+  //       abi.encode(
+  //         keccak256(
+  //           "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+  //         ),
+  //         keccak256(bytes(name)),
+  //         keccak256("1"),
+  //         block.chainid,
+  //         address(this)
+  //       )
+  //     );
+  // }
 
   /// @notice This is the lowest level ERC-20 transfer function, which
   ///         should be used for both normal ERC-20 transfers as well as minting.
@@ -650,7 +650,7 @@ abstract contract ERC404 is IERC404 {
     uint256 data = _ownedData[id_];
 
     assembly {
-      ownedIndex_ := shl(data, 160)
+      ownedIndex_ := shr(160, data)
     }
   }
 
@@ -664,7 +664,7 @@ abstract contract ERC404 is IERC404 {
     assembly {
       data := add(
         and(data, _BITMASK_ADDRESS),
-        and(shl(index_, 160), _BITMASK_OWNED_INDEX)
+        and(shl(160, index_), _BITMASK_OWNED_INDEX)
       )
     }
 
