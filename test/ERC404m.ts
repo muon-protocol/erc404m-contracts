@@ -15,6 +15,7 @@ describe("ERC404m", async () => {
   let wallet2: Signer;
   let wallet3: Signer;
   let wallet4: Signer;
+  let spender1: Signer;
   let mrc404Token: ERC404m;
 
 
@@ -29,7 +30,8 @@ describe("ERC404m", async () => {
       wallet1,
       wallet2,
       wallet3,
-      wallet4
+      wallet4,
+      spender1
     ] = await ethers.getSigners();
     mrc404Token = await loadFixture(deployMRC404);
   })
@@ -147,11 +149,95 @@ describe("ERC404m", async () => {
 
   })
 
+  describe("Approval", async () => {
+    before(async () => {
+      [
+        adminWallet,
+        wallet1,
+        wallet2,
+        wallet3,
+        wallet4,
+        spender1
+      ] = await ethers.getSigners();
+      mrc404Token = await loadFixture(deployMRC404);
+    })
 
-  describe("Whitelist" async () => {
+    it("Should mint 10 tokens for wallet1", async () => {
+      await mrc404Token.connect(adminWallet).mint(wallet1, ethers.parseEther("10"), rarityBytes);
+    })
+
+    it("Should wallet1 approve tokenId:1 for spender1", async () => {
+      await expect(mrc404Token.connect(wallet1).approve(spender1.getAddress(), 1))
+      .to.emit(mrc404Token, "ERC721Approval").withArgs(wallet1.getAddress(), spender1.getAddress(), 1)
+      expect(await mrc404Token.getApproved(1)).to.be.equal(spender1.address);
+    })
+
+    it("Should wallet1 approve 2 tokens for spender1", async () => {
+      await expect(mrc404Token.connect(wallet1).approve(spender1.getAddress(), ethers.parseEther("2")))
+      .to.emit(mrc404Token, "ERC20Approval").withArgs(wallet1.getAddress(), spender1.getAddress(), ethers.parseEther("2"))
+      expect(await mrc404Token.allowance(wallet1.getAddress(), spender1.getAddress())).to.be.equal(ethers.parseEther("2"));
+    })
+
+    it("Should prevent spender1 transfers tokenId:2 from wallet1 with custom error Unauthorized", async () => {
+      await expect((
+        mrc404Token.connect(spender1).transferFrom(wallet1.getAddress(), wallet2.getAddress(), 2)
+      )).to.be.revertedWithCustomError(mrc404Token, "Unauthorized");
+    })
+
+    it("Should prevent spender1 transfers 2.1 tokens from wallet1 to wallet2 because of allowance", async () => {
+      await expect((
+        mrc404Token.connect(spender1).transferFrom(wallet1.getAddress(), wallet2.getAddress(), ethers.parseEther("2.1"))
+      )).to.be.reverted;
+    })
+
+    it("Should spender1 transfers 2 tokens from wallet1 to wallet2 and tokenId:9,10", async () => {
+      await expect(mrc404Token.connect(spender1).transferFrom(wallet1.getAddress(), wallet2.getAddress(), ethers.parseEther("2")))
+      .to.emit(mrc404Token, "ERC20Transfer").withArgs(wallet1.getAddress(), wallet2.getAddress(), ethers.parseEther("2"))
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet1.getAddress(), wallet2.getAddress(), 10)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet1.getAddress(), wallet2.getAddress(), 9)
+    })
+
+    it("Should spender1 transfers tokenId:1 to wallet2", async () => {
+      await expect(mrc404Token.connect(spender1).transferFrom(wallet1.getAddress(), wallet2.getAddress(), 1))
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet1.getAddress(), wallet2.getAddress(), 1)
+    })
+
+    it("Should mint 10 tokens for wallet3", async () => {
+      await mrc404Token.connect(adminWallet).mint(wallet3, ethers.parseEther("10"), rarityBytes);
+    })
+
+    it("Should wallet3 approveForAll for spender1", async () => {
+      await expect(mrc404Token.connect(wallet3).setApprovalForAll(spender1.getAddress(), true))
+      .to.emit(mrc404Token, "ApprovalForAll").withArgs(wallet3.getAddress(), spender1.getAddress(), true)
+      expect(await mrc404Token.isApprovedForAll(wallet3.getAddress(), spender1.getAddress())).to.be.equal(true);
+    })
+
+    it("Should spender1 transfers tokenId:11,12 from wallet3 to wallet4", async () => {
+      await expect(mrc404Token.connect(spender1).transferFrom(wallet3.getAddress(), wallet4.getAddress(), 11))
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet3.getAddress(), wallet4.getAddress(), 11);
+      await expect(mrc404Token.connect(spender1).transferFrom(wallet3.getAddress(), wallet4.getAddress(), 12))
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet3.getAddress(), wallet4.getAddress(), 12);
+    })
+
+    it("Should wallet3 get back approveForAll for spender1", async () => {
+      await expect(mrc404Token.connect(wallet3).setApprovalForAll(spender1.getAddress(), false))
+      .to.emit(mrc404Token, "ApprovalForAll").withArgs(wallet3.getAddress(), spender1.getAddress(), false)
+      expect(await mrc404Token.isApprovedForAll(wallet3.getAddress(), spender1.getAddress())).to.be.equal(false);
+    })
+
+    it("Should prevent spender1 transfers tokenId:13 from wallet3 with custom error Unauthorized", async () => {
+      await expect((
+        mrc404Token.connect(spender1).transferFrom(wallet3.getAddress(), wallet4.getAddress(), 13)
+      )).to.be.revertedWithCustomError(mrc404Token, "Unauthorized");
+    })
+
+  })
+
+  describe("Whitelist", async () => {
+
     it("Should prevent add to wl because lack of access", async () => {
       await expect((
-        mrc404Token.connect(wallet1).mint(wallet1.getAddress(), 2, rarityBytes)
+        mrc404Token.connect(wallet1).setWhitelist(wallet1.getAddress(), true)
       )).to.be.revertedWithCustomError(
         mrc404Token,
         'AccessControlUnauthorizedAccount'
