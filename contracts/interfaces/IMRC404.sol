@@ -9,6 +9,11 @@ interface IMRC404 is IERC404 {
     uint256 amount
   ) external returns (bytes memory nftData);
 
+  function burnFrom(
+    address from,
+    uint256[] calldata nftIds
+  ) external returns (bytes memory nftData);
+
   function mint(
     address to,
     uint256 amount,
@@ -20,4 +25,6 @@ interface IMRC404 is IERC404 {
   function encodeData(
     uint256[] calldata ids
   ) external view returns (bytes memory);
+
+  function getUnits() external view returns (uint256);
 }
