@@ -148,4 +148,15 @@ describe("ERC404m", async () => {
   })
 
 
+  describe("Whitelist" async () => {
+    it("Should prevent add to wl because lack of access", async () => {
+      await expect((
+        mrc404Token.connect(wallet1).mint(wallet1.getAddress(), 2, rarityBytes)
+      )).to.be.revertedWithCustomError(
+        mrc404Token,
+        'AccessControlUnauthorizedAccount'
+      );
+    })
+  })
+
 })
