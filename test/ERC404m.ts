@@ -245,4 +245,72 @@ describe("ERC404m", async () => {
     })
   })
 
+
+  describe("BurnFrom-ERC20", async () => {
+    before(async () => {
+      [
+        adminWallet,
+        wallet1,
+        wallet2,
+        wallet3,
+        wallet4,
+        spender1
+      ] = await ethers.getSigners();
+      mrc404Token = await loadFixture(deployMRC404);
+    })
+
+    it("Should mint 5 tokens for wallet1", async () => {
+      await mrc404Token.connect(adminWallet).mint(wallet1, ethers.parseEther("5"), rarityBytes);
+    })
+
+    it("Should prevent spender1 burn 1 token from wallet1 with custom error ERC20InsufficientAllowance", async () => {
+      await expect((
+        mrc404Token.connect(spender1)["burnFrom(address,uint256)"](wallet1.getAddress(), ethers.parseEther("1"))
+      )).to.be.revertedWithCustomError(mrc404Token, "ERC20InsufficientAllowance");
+    })
+
+    it("Should wallet1 approve 2 tokens for spender1", async () => {
+      await expect(mrc404Token.connect(wallet1).approve(spender1.getAddress(), ethers.parseEther("2")))
+      .to.emit(mrc404Token, "ERC20Approval").withArgs(wallet1.getAddress(), spender1.getAddress(), ethers.parseEther("2"))
+      expect(await mrc404Token.allowance(wallet1.getAddress(), spender1.getAddress())).to.be.equal(ethers.parseEther("2"));
+    })
+
+    it("Should spender1 burn 2 erc20 and tokenId:4,5 from wallet1", async () => {
+      await expect((
+        mrc404Token.connect(spender1)["burnFrom(address,uint256)"](wallet1.getAddress(), ethers.parseEther("2"))
+      )).to.emit(mrc404Token, "ERC20Transfer").withArgs(wallet1.address, ethers.ZeroAddress, ethers.parseEther("2"))
+      .to.emit(mrc404Token, "Transfer").withArgs(wallet1.address, ethers.ZeroAddress, 5)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet1.address, ethers.ZeroAddress, 5)
+      .to.emit(mrc404Token, "Transfer").withArgs(wallet1.address, ethers.ZeroAddress, 4)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet1.address, ethers.ZeroAddress, 4);
+    })
+
+    it("Should prevent spender1 burn 1 token from wallet1 with custom error ERC20InsufficientAllowance", async () => {
+      await expect((
+        mrc404Token.connect(spender1)["burnFrom(address,uint256)"](wallet1.getAddress(), ethers.parseEther("1"))
+      )).to.be.revertedWithCustomError(mrc404Token, "ERC20InsufficientAllowance");
+    })
+
+    it("Should adminWallet mint 1 erc20 and tokenId:5 for wallet2", async () => {
+      await expect(mrc404Token.connect(adminWallet).mint(wallet2.getAddress(), ethers.parseEther("1"), rarityBytes))
+      .to.emit(mrc404Token, "ERC20Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), ethers.parseEther("1"))
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 5)
+      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 5)
+    })
+
+    it("Should adminWallet mint 2 erc20 and tokenId:4,6 for wallet2", async () => {
+      await expect(mrc404Token.connect(adminWallet).mint(wallet2.getAddress(), ethers.parseEther("2"), rarityBytes))
+      .to.emit(mrc404Token, "ERC20Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), ethers.parseEther("2"))
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 4)
+      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 4)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 6)
+      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 6)
+    })
+
+    it("Should check totalSupply", async () => {
+      expect(await mrc404Token.totalSupply()).to.be.equal(ethers.parseEther("6"))
+    })
+
+  })
+
 })
