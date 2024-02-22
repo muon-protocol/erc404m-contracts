@@ -70,23 +70,19 @@ contract MRC20Bridge is AccessControl {
   // source chain => (tx id => false/true)
   mapping(uint256 => mapping(uint256 => bool)) public claimedTxs;
 
-  uint256 public fee;
-  uint256 public feeScale = 1e6;
-
   /* ========== CONSTRUCTOR ========== */
 
   constructor(
     uint256 _muonAppId,
     IMuonClient.PublicKey memory _muonPublicKey,
-    address _muon,
-    uint256 _fee
+    address _muon
   ) {
     network = getExecutingChainID();
     muonAppId = _muonAppId;
     muonPublicKey = _muonPublicKey;
     muon = IMuonClient(_muon);
-    fee = _fee;
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
   }
 
   /* ========== PUBLIC FUNCTIONS ========== */
@@ -154,7 +150,6 @@ contract MRC20Bridge is AccessControl {
     }
 
     claimedTxs[params.fromChain][params.txId] = true;
-    params.amount -= (params.amount * fee) / feeScale;
     IMRC404 token = IMRC404(tokens[params.tokenId]);
 
     token.mint(params.user, params.amount, nftData);
@@ -264,10 +259,6 @@ contract MRC20Bridge is AccessControl {
     address _gatewayAddress
   ) external onlyRole(ADMIN_ROLE) {
     muonValidGateway = _gatewayAddress;
-  }
-
-  function setFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
-    fee = _fee;
   }
 
   function emergencyWithdrawETH(
