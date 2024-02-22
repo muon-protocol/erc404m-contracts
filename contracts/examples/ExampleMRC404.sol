@@ -29,6 +29,11 @@ contract ExampleMRC404 is MRC404 {
     uint256 amount
   ) public override returns (bytes memory nftData) {}
 
+  function burnFrom(
+    address from,
+    uint256[] calldata nftIds
+  ) public override returns (bytes memory nftData) {}
+
   function mint(
     address to,
     uint256 amount,

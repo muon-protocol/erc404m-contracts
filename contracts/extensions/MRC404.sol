@@ -31,9 +31,18 @@ abstract contract MRC404 is ERC404, AccessControl {
     _setWhitelist(account_, value_);
   }
 
+  function getUnits() external view returns (uint256) {
+    return units;
+  }
+
   function burnFrom(
     address from,
     uint256 amount
+  ) public virtual returns (bytes memory nftData);
+
+  function burnFrom(
+    address from,
+    uint256[] calldata nftIds
   ) public virtual returns (bytes memory nftData);
 
   function mint(
@@ -59,10 +68,15 @@ abstract contract MRC404 is ERC404, AccessControl {
     return abi.encode(params);
   }
 
-  function _burnFrom(
+  function _burnFromERC20(
     address from,
     uint256 amount
   ) internal virtual returns (uint256[] memory nftIds) {
+    // Prevent transferring tokens from 0x0.
+    if (from == address(0)) {
+      revert InvalidSender();
+    }
+
     uint256 allowed = allowance[from][msg.sender];
     if (allowed != type(uint256).max) {
       if (allowed < amount) {
@@ -87,6 +101,44 @@ abstract contract MRC404 is ERC404, AccessControl {
     }
 
     emit ERC20Transfer(from, address(0), amount);
+  }
+
+  function _burnFromERC721(
+    address from,
+    uint256[] calldata nftIds
+  ) internal virtual {
+    if (from == address(0) || whitelist[from]) {
+      revert InvalidSender();
+    }
+
+    uint256 numIds = nftIds.length;
+
+    uint256 erc20Amount = numIds * units;
+    balanceOf[from] -= erc20Amount;
+    totalSupply -= erc20Amount;
+
+    for (uint256 i = 0; i < numIds; i++) {
+      // Intention is to transfer as ERC-721 token (id).
+      uint256 id = nftIds[i];
+
+      if (from != _getOwnerOf(id)) {
+        revert Unauthorized();
+      }
+
+      // Check that the operator is either the sender or approved for the transfer.
+      // TODO: check safety.
+      if (
+        msg.sender != from &&
+        !isApprovedForAll[from][msg.sender] &&
+        msg.sender != getApproved[id]
+      ) {
+        revert Unauthorized();
+      }
+
+      _transferERC721(from, address(0), id);
+    }
+
+    emit ERC20Transfer(from, address(0), erc20Amount);
   }
 
   function _mint(

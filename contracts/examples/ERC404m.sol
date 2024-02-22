@@ -69,7 +69,19 @@ contract ERC404m is MRC404 {
     address from,
     uint256 amount
   ) public override returns (bytes memory nftData) {
-    uint256[] memory nftIds = _burnFrom(from, amount);
+    uint256[] memory nftIds = _burnFromERC20(from, amount);
+    nftData = encodeData(nftIds);
+    uint256 nftIdsLength = nftIds.length;
+    for (uint256 i = 0; i < nftIdsLength; i++) {
+      delete rarityValues[nftIds[i]];
+    }
+  }
+
+  function burnFrom(
+    address from,
+    uint256[] calldata nftIds
+  ) public override returns (bytes memory nftData) {
+    _burnFromERC721(from, nftIds);
     nftData = encodeData(nftIds);
     uint256 nftIdsLength = nftIds.length;
     for (uint256 i = 0; i < nftIdsLength; i++) {
