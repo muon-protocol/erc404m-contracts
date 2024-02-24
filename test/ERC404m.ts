@@ -313,4 +313,96 @@ describe("ERC404m", async () => {
 
   })
 
+  describe("BurnFrom-ERC721", async () => {
+    before(async () => {
+      [
+        adminWallet,
+        wallet1,
+        wallet2,
+        wallet3,
+        wallet4,
+        spender1
+      ] = await ethers.getSigners();
+      mrc404Token = await loadFixture(deployMRC404);
+    })
+
+    it("Should mint 5 tokens for wallet1", async () => {
+      await mrc404Token.connect(adminWallet).mint(wallet1, ethers.parseEther("5"), rarityBytes);
+    })
+
+    it("Should prevent spender1 burn 1 token from wallet1 with custom error Unauthorized", async () => {
+      await expect((
+        mrc404Token.connect(spender1)["burnFrom(address,uint256[])"](wallet1.getAddress(), [1])
+      )).to.be.revertedWithCustomError(mrc404Token, "Unauthorized");
+    })
+
+    it("Should wallet1 approve tokenId:1 for spender1", async () => {
+      await expect(mrc404Token.connect(wallet1).approve(spender1.getAddress(), 1))
+      .to.emit(mrc404Token, "ERC721Approval").withArgs(wallet1.getAddress(), spender1.getAddress(), 1)
+      expect(await mrc404Token.getApproved(1)).to.be.equal(spender1.address);
+    })
+
+    it("Should prevent spender1 burn 1 token from wallet1 with custom error ERC20InsufficientAllowance", async () => {
+      await expect((
+        mrc404Token.connect(spender1)["burnFrom(address,uint256)"](wallet1.getAddress(), ethers.parseEther("1"))
+      )).to.be.revertedWithCustomError(mrc404Token, "ERC20InsufficientAllowance");
+    })
+
+    it("Should spender1 burn tokenId:1 from wallet1 and also 1 erc20 unit", async () => {
+      await expect((
+        mrc404Token.connect(spender1)["burnFrom(address,uint256[])"](wallet1.getAddress(), [1])
+      )).to.emit(mrc404Token, "ERC20Transfer").withArgs(wallet1.address, ethers.ZeroAddress, ethers.parseEther("1"))
+      .to.emit(mrc404Token, "Transfer").withArgs(wallet1.address, ethers.ZeroAddress, 1)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet1.address, ethers.ZeroAddress, 1);
+    })
+
+    it("Should prevent spender1 burn tokenId:1 from wallet1 again: Unauthorized", async () => {
+      await expect((
+        mrc404Token.connect(spender1)["burnFrom(address,uint256[])"](wallet1.getAddress(), [1])
+      )).to.be.revertedWithCustomError(mrc404Token, "Unauthorized");
+    })
+
+    it("Should mint 5 tokens for wallet2", async () => {
+      await mrc404Token.connect(adminWallet).mint(wallet2, ethers.parseEther("5"), rarityBytes);
+    })
+
+    it("Should wallet2 approve for all tokens", async () => {
+      await expect(mrc404Token.connect(wallet2).setApprovalForAll(spender1.getAddress(), true))
+      .to.emit(mrc404Token, "ApprovalForAll").withArgs(wallet2.getAddress(), spender1.getAddress(), true)
+      expect(await mrc404Token.isApprovedForAll(wallet2.getAddress(), spender1.getAddress())).to.be.equal(true);
+    })
+
+    it("Should prevent spender1 burn tokenId:8 from wallet1 because it is for wallet2: Unauthorized", async () => {
+      await expect((
+        mrc404Token.connect(spender1)["burnFrom(address,uint256[])"](wallet1.getAddress(), [8])
+      )).to.be.revertedWithCustomError(mrc404Token, "Unauthorized");
+    })
+
+    it("Should spender1 burn tokenId:6,7,8 from wallet2 and transfer 3*unit ERC20", async () => {
+      await expect((
+        mrc404Token.connect(spender1)["burnFrom(address,uint256[])"](wallet2.getAddress(), [6,8,10])
+      )).to.emit(mrc404Token, "ERC20Transfer").withArgs(wallet2.address, ethers.ZeroAddress, ethers.parseEther("3"))
+      .to.emit(mrc404Token, "Transfer").withArgs(wallet2.address, ethers.ZeroAddress, 6)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet2.address, ethers.ZeroAddress, 6)
+      .to.emit(mrc404Token, "Transfer").withArgs(wallet2.address, ethers.ZeroAddress, 8)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet2.address, ethers.ZeroAddress, 8)
+      .to.emit(mrc404Token, "Transfer").withArgs(wallet2.address, ethers.ZeroAddress, 10)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet2.address, ethers.ZeroAddress, 10)
+    })
+
+    it("Should adminWallet mint 2 erc20 and tokenId:11,12 for wallet3", async () => {
+      await expect(mrc404Token.connect(adminWallet).mint(wallet3.getAddress(), ethers.parseEther("2"), rarityBytes))
+      .to.emit(mrc404Token, "ERC20Transfer").withArgs(ethers.ZeroAddress, wallet3.getAddress(), ethers.parseEther("2"))
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet3.getAddress(), 11)
+      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet3.getAddress(), 11)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet3.getAddress(), 12)
+      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet3.getAddress(), 12)
+    })
+
+    it("Should check totalSupply", async () => {
+      expect(await mrc404Token.totalSupply()).to.be.equal(ethers.parseEther("8"))
+    })
+
+  })
+
 })
