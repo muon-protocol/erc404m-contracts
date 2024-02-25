@@ -15,15 +15,12 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
     uint256 paidReward;
     uint256 paidRewardPerToken;
     uint256 pendingRewards;
-    address[] stakedTokens;
   }
 
   bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
   bytes32 public constant REWARD_ROLE = keccak256("REWARD_ROLE");
 
   uint256 public totalStaked;
-
-  uint256 public notPaidRewards;
 
   uint256 public minStakeAmount;
 
@@ -38,20 +35,10 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
   mapping(address => User) public users;
 
   IERC20Upgradeable public rewardToken;
+  IERC20Upgradeable public stakedToken; 
 
   // stakerAddress => bool
   mapping(address => bool) public lockedStakes;
-
-  // token address => index + 1
-  mapping(address => uint16) public isStakingToken;
-
-  address[] public stakingTokens;
-
-  // token => multiplier * 1e18
-  mapping(address => uint256) public stakingTokensMultiplier;
-
-  // staker => ( token => amount )
-  mapping(address => mapping(address => uint256)) public stakedAmounts;
 
   // function name => paused
   mapping(string => bool) public functionPauseStatus;
@@ -69,9 +56,7 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
   );
   event MinStakeAmountUpdated(uint256 minStakeAmount);
   event StakeLockStatusChanged(address indexed stakerAddress, bool locked);
-  event StakingTokenUpdated(address indexed token, uint256 multiplier);
   event FunctionPauseStatusChanged(string indexed functionName, bool isPaused);
-  event VerifierUpdated(address verifierAddress);
 
   // ======== Modifiers ========
   /**
@@ -102,12 +87,13 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
    * @dev Initializes the contract.
    * @param _rewardTokenAddress The address of the reward token.
    */
-  function initialize(address _rewardTokenAddress) external initializer {
-    __MuonNodeStakingUpgradeable_init(_rewardTokenAddress);
+  function initialize(address _rewardTokenAddress, address _stakedToken ) external initializer {
+    __MuonNodeStakingUpgradeable_init(_rewardTokenAddress, _stakedToken);
   }
 
   function __MuonNodeStakingUpgradeable_init(
-    address _rewardTokenAddress
+    address _rewardTokenAddress,
+    address _stakedToken
   ) internal initializer {
     __AccessControl_init();
 
@@ -115,106 +101,48 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
     _setupRole(DAO_ROLE, msg.sender);
 
     rewardToken = IERC20Upgradeable(_rewardTokenAddress);
+    stakedToken = IERC20Upgradeable(_stakedToken);
 
-    minStakeAmount = 5 ether;
+    minStakeAmount = 0;
 
-    rewardPeriod = 7 days;
+    rewardPeriod = 10 days;
   }
 
   function __MuonNodeStakingUpgradeable_init_unchained() internal initializer {}
 
-  /**
-   * @dev Updates the list of staking tokens and their multipliers.
-   * Only callable by the DAO_ROLE.
-   * @param tokens The array of staking token addresses.
-   * @param multipliers The array of corresponding multipliers for each token.
-   */
-  function updateStakingTokens(
-    address[] calldata tokens,
-    uint256[] calldata multipliers
-  ) external onlyRole(DAO_ROLE) {
-    uint256 tokensLength = tokens.length;
-
-    require(tokensLength == multipliers.length, "Arrays length mismatch.");
-
-    for (uint256 i = 0; i < tokensLength; i++) {
-      address token = tokens[i];
-      uint256 multiplier = multipliers[i];
-
-      if (isStakingToken[token] > 0) {
-        if (multiplier == 0) {
-          uint16 tokenIndex = isStakingToken[token] - 1;
-          address lastToken = stakingTokens[stakingTokens.length - 1];
-
-          stakingTokens[tokenIndex] = lastToken;
-          isStakingToken[lastToken] = isStakingToken[token];
-          stakingTokens.pop();
-          isStakingToken[token] = 0;
-        }
-
-        stakingTokensMultiplier[token] = multiplier;
-      } else {
-        require(multiplier > 0, "Invalid multiplier.");
-        stakingTokens.push(token);
-        stakingTokensMultiplier[token] = multiplier;
-        isStakingToken[token] = uint16(stakingTokens.length);
-      }
-      emit StakingTokenUpdated(token, multiplier);
-    }
-  }
-
+  
   /**
    * @dev Locks the specified tokens.
    * The staker must first approve the contract to transfer the tokens on their behalf.
    * Only the staker can call this function.
-   * @param tokens The array of token addresses to be locked.
-   * @param amounts The corresponding array of token amounts to be locked.
+   * @param amount amount of tokens
    */
-  function lockToken(
-    address[] memory tokens,
-    uint256[] memory amounts
-  ) external whenFunctionNotPaused("lockToken") {
-    uint256 tokensLength = tokens.length;
+  function stake(
+    uint256 amount
+  ) external updateReward(msg.sender) whenFunctionNotPaused("lockToken") {
+      uint256 balance = IERC20Upgradeable(stakedToken).balanceOf(address(this));
 
-    require(tokensLength == amounts.length, "Arrays length mismatch.");
-
-    for (uint256 i = 0; i < tokensLength; i++) {
-      uint256 balance = IERC20Upgradeable(tokens[i]).balanceOf(address(this));
-
-      IERC20Upgradeable(tokens[i]).safeTransferFrom(
+      IERC20Upgradeable(stakedToken).safeTransferFrom(
         msg.sender,
         address(this),
-        amounts[i]
+        amount
       );
 
-      uint256 receivedAmount = IERC20Upgradeable(tokens[i]).balanceOf(
+      uint256 receivedAmount = IERC20Upgradeable(stakedToken).balanceOf(
         address(this)
       ) - balance;
       require(
-        amounts[i] == receivedAmount,
+        amount == receivedAmount,
         "The discrepancy between the received amount and the claimed amount."
       );
 
-      stakedAmounts[msg.sender][tokens[i]] = amounts[i];
-    }
-
-    _updateStaking(msg.sender);
-  }
-
-  /**
-   * @dev Updates the staking status for the staker.
-   * This function calculates the staked amount based on the locked tokens and their multipliers,
-   * and updates the balance and total staked amount accordingly.
-   * Only callable by staker.
-   */
-  function updateStaking() external {
-    _updateStaking(msg.sender);
+      users[msg.sender].balance += amount;
   }
 
   /**
    * @dev Allows the stakers to withdraw their rewards.
    */
-  function getReward() external whenFunctionNotPaused("getReward") {
+  function getReward() external updateReward(msg.sender) whenFunctionNotPaused("getReward") {
     require(users[msg.sender].balance > 0, "Invalid balance");
 
     uint256 amount = earned(msg.sender);
@@ -231,24 +159,17 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
   /**
    * @dev Allows stakers to withdraw their staked amount after exit pending period has passed.
    */
-  function withdraw() external whenFunctionNotPaused("withdraw") {
+  function withdraw() external updateReward(msg.sender) whenFunctionNotPaused("withdraw") {
     require(!lockedStakes[msg.sender], "Stake is locked.");
 
     if (users[msg.sender].balance > 0) {
       totalStaked -= users[msg.sender].balance;
-      users[msg.sender].balance = 0;
-    }
+      uint256 amount = users[msg.sender].balance;
 
-    address[] memory tokens = users[msg.sender].stakedTokens;
-    delete users[msg.sender].stakedTokens;
-    uint256 tokensLength = tokens.length;
-    for (uint256 i = 0; i < tokensLength; i++) {
-      address token = tokens[i];
-
-      uint256 amount = stakedAmounts[msg.sender][token];
-      stakedAmounts[msg.sender][token] = 0;
-
-      IERC20Upgradeable(token).transfer(msg.sender, amount);
+      if(amount > 0){
+        users[msg.sender].balance = 0;
+        IERC20Upgradeable(stakedToken).transfer(msg.sender, amount);
+      }
     }
 
     emit Withdrawn(msg.sender);
@@ -263,14 +184,13 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
     uint256 reward
   ) external updateReward(address(0)) onlyRole(REWARD_ROLE) {
     if (block.timestamp >= periodFinish) {
-      rewardRate = (reward + notPaidRewards) / rewardPeriod;
+      rewardRate = reward / rewardPeriod;
     } else {
       uint256 remaining = periodFinish - block.timestamp;
       uint256 leftover = remaining * rewardRate;
-      rewardRate = (reward + leftover + notPaidRewards) / rewardPeriod;
+      rewardRate = (reward + leftover) / rewardPeriod;
     }
 
-    notPaidRewards = 0;
     lastUpdateTime = block.timestamp;
     periodFinish = block.timestamp + rewardPeriod;
     emit RewardsDistributed(reward, block.timestamp, rewardPeriod);
@@ -341,19 +261,6 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
   }
 
   /**
-   * @dev Calculates the value of a token in terms of the staking tokens.
-   * @return value The total value of the bonded token.
-   */
-  function valueOfToken(
-    address token,
-    uint256 amount
-  ) public view returns (uint256 value) {
-    uint256 multiplier = stakingTokensMultiplier[token];
-    value = (multiplier * amount) / 1e18;
-    return value;
-  }
-
-  /**
    * @dev Calculates the current reward per token.
    * The reward per token is the amount of reward earned per staking token until now.
    * @return The current reward per token.
@@ -388,25 +295,5 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
    */
   function lastTimeRewardApplicable() public view returns (uint256) {
     return block.timestamp < periodFinish ? block.timestamp : periodFinish;
-  }
-
-  function _updateStaking(
-    address stakerAddress
-  ) private updateReward(stakerAddress) {
-    uint256 amount = 0;
-    uint256 stakingTokensLength = stakingTokens.length;
-    for (uint256 i = 0; i < stakingTokensLength; i++) {
-      address token = stakingTokens[i];
-      amount += valueOfToken(token, stakedAmounts[stakerAddress][token]);
-    }
-
-    require(amount >= minStakeAmount, "Insufficient staking.");
-
-    if (users[stakerAddress].balance != amount) {
-      totalStaked -= users[stakerAddress].balance;
-      users[stakerAddress].balance = amount;
-      totalStaked += amount;
-      emit Staked(stakerAddress, amount);
-    }
   }
 }
