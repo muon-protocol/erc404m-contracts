@@ -116,7 +116,9 @@ task("verify-cli", "verify contract on the specified network")
 module.exports = {
   defaultNetwork: "hardhat",
   networks: {
-    hardhat: {},
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
     ...networks,
   },
   solidity: {
