@@ -148,9 +148,9 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
    * @dev Allows the stakers to withdraw their rewards.
    */
   function getReward() external whenFunctionNotPaused("getReward") {
-    require(users[msg.sender].balance > 0, "Invalid balance");
-
     uint256 amount = earned(msg.sender);
+
+    require(amount > 0, "Invalid reward amount");
 
     users[msg.sender].pendingRewards = 0;
     users[msg.sender].paidReward += amount;
