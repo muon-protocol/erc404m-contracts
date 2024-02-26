@@ -35,7 +35,7 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
   mapping(address => User) public users;
 
   IERC20Upgradeable public rewardToken;
-  IERC20Upgradeable public stakedToken; 
+  IERC20Upgradeable public stakedToken;
 
   // stakerAddress => bool
   mapping(address => bool) public lockedStakes;
@@ -87,7 +87,10 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
    * @dev Initializes the contract.
    * @param _rewardTokenAddress The address of the reward token.
    */
-  function initialize(address _rewardTokenAddress, address _stakedToken ) external initializer {
+  function initialize(
+    address _rewardTokenAddress,
+    address _stakedToken
+  ) external initializer {
     __MuonNodeStakingUpgradeable_init(_rewardTokenAddress, _stakedToken);
   }
 
@@ -110,7 +113,6 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
 
   function __MuonNodeStakingUpgradeable_init_unchained() internal initializer {}
 
-  
   /**
    * @dev Locks the specified tokens.
    * The staker must first approve the contract to transfer the tokens on their behalf.
@@ -119,30 +121,37 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
    */
   function stake(
     uint256 amount
-  ) external updateReward(msg.sender) whenFunctionNotPaused("lockToken") {
-      uint256 balance = IERC20Upgradeable(stakedToken).balanceOf(address(this));
+  ) external updateReward(msg.sender) whenFunctionNotPaused("stake") {
+    uint256 balance = IERC20Upgradeable(stakedToken).balanceOf(address(this));
 
-      IERC20Upgradeable(stakedToken).safeTransferFrom(
-        msg.sender,
-        address(this),
-        amount
-      );
+    IERC20Upgradeable(stakedToken).safeTransferFrom(
+      msg.sender,
+      address(this),
+      amount
+    );
 
-      uint256 receivedAmount = IERC20Upgradeable(stakedToken).balanceOf(
-        address(this)
-      ) - balance;
-      require(
-        amount == receivedAmount,
-        "The discrepancy between the received amount and the claimed amount."
-      );
+    uint256 receivedAmount = IERC20Upgradeable(stakedToken).balanceOf(
+      address(this)
+    ) - balance;
+    require(
+      amount == receivedAmount,
+      "The discrepancy between the received amount and the claimed amount."
+    );
 
-      users[msg.sender].balance += amount;
+    users[msg.sender].balance += amount;
+    totalStaked += amount;
+
+    emit Staked(msg.sender, amount);
   }
 
   /**
    * @dev Allows the stakers to withdraw their rewards.
    */
-  function getReward() external updateReward(msg.sender) whenFunctionNotPaused("getReward") {
+  function getReward()
+    external
+    updateReward(msg.sender)
+    whenFunctionNotPaused("getReward")
+  {
     require(users[msg.sender].balance > 0, "Invalid balance");
 
     uint256 amount = earned(msg.sender);
@@ -159,14 +168,18 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
   /**
    * @dev Allows stakers to withdraw their staked amount after exit pending period has passed.
    */
-  function withdraw() external updateReward(msg.sender) whenFunctionNotPaused("withdraw") {
+  function withdraw()
+    external
+    updateReward(msg.sender)
+    whenFunctionNotPaused("withdraw")
+  {
     require(!lockedStakes[msg.sender], "Stake is locked.");
 
     if (users[msg.sender].balance > 0) {
       totalStaked -= users[msg.sender].balance;
       uint256 amount = users[msg.sender].balance;
 
-      if(amount > 0){
+      if (amount > 0) {
         users[msg.sender].balance = 0;
         IERC20Upgradeable(stakedToken).transfer(msg.sender, amount);
       }
