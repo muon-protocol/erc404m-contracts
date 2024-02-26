@@ -147,11 +147,7 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
   /**
    * @dev Allows the stakers to withdraw their rewards.
    */
-  function getReward()
-    external
-    updateReward(msg.sender)
-    whenFunctionNotPaused("getReward")
-  {
+  function getReward() external whenFunctionNotPaused("getReward") {
     require(users[msg.sender].balance > 0, "Invalid balance");
 
     uint256 amount = earned(msg.sender);
@@ -175,14 +171,12 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
   {
     require(!lockedStakes[msg.sender], "Stake is locked.");
 
-    if (users[msg.sender].balance > 0) {
-      totalStaked -= users[msg.sender].balance;
-      uint256 amount = users[msg.sender].balance;
+    uint256 amount = users[msg.sender].balance;
 
-      if (amount > 0) {
-        users[msg.sender].balance = 0;
-        IERC20Upgradeable(stakedToken).transfer(msg.sender, amount);
-      }
+    if (amount > 0) {
+      totalStaked -= amount;
+      users[msg.sender].balance = 0;
+      IERC20Upgradeable(stakedToken).transfer(msg.sender, amount);
     }
 
     emit Withdrawn(msg.sender);
