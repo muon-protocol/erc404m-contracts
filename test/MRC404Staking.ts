@@ -107,4 +107,43 @@ describe("MRC404Staking", function () {
 
   })
 
+  describe("Get Reward", async () => {
+
+    it("User1 can get rewards after rewardPeriod", async () => {
+      const user1Reward = await mrc404Staking.earned(user1);
+      const rewardPerToken = await mrc404Staking.rewardPerToken();
+      await (expect(mrc404Staking.connect(user1).getReward()))
+      .to.emit(mrc404Staking, "RewardGot").withArgs(user1, user1Reward);
+      const userInfo = await mrc404Staking.users(user1.address)
+      expect(userInfo.balance).to.be.equal(ethers.parseEther("3"));
+      expect(userInfo.paidReward).to.be.equal(user1Reward);
+      expect(userInfo.paidRewardPerToken).to.be.equal(rewardPerToken);
+      expect(userInfo.pendingRewards).to.be.equal(0);
+      expect(await mrc404Staking.earned(user1)).to.be.equal(0);
+    })
+
+
+    it("User2 can get rewards after rewardPeriod + 2 days", async () => {
+      await time.increase(2 * oneDay);
+      const user2Reward = await mrc404Staking.earned(user2);
+      const rewardPerToken = await mrc404Staking.rewardPerToken();
+      await (expect(mrc404Staking.connect(user2).getReward()))
+      .to.emit(mrc404Staking, "RewardGot").withArgs(user2, user2Reward);
+      const userInfo = await mrc404Staking.users(user2.address)
+      expect(userInfo.balance).to.be.equal(ethers.parseEther("6"));
+      expect(userInfo.paidReward).to.be.equal(user2Reward);
+      expect(userInfo.paidRewardPerToken).to.be.equal(rewardPerToken);
+      expect(userInfo.pendingRewards).to.be.equal(0);
+      expect(await mrc404Staking.earned(user2)).to.be.equal(0);
+    })
+
+    it("Should prevent user1 getReward", async () => {
+      const user1Reward = await mrc404Staking.earned(user1);
+      expect(user1Reward).to.be.equal(0);
+      await (expect(mrc404Staking.connect(user1).getReward()))
+      .revertedWith("Invalid reward amount");
+    })
+
+  })
+
 });
