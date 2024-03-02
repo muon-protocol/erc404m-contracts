@@ -15,6 +15,7 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
     uint256 paidReward;
     uint256 paidRewardPerToken;
     uint256 pendingRewards;
+    uint256 lastStakeTime;
   }
 
   bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
@@ -31,6 +32,8 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
   uint256 public lastUpdateTime;
 
   uint256 public rewardPerTokenStored;
+
+  uint256 public withdrawalWaitingPeriod;
 
   mapping(address => User) public users;
 
@@ -57,6 +60,7 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
   event MinStakeAmountUpdated(uint256 minStakeAmount);
   event StakeLockStatusChanged(address indexed stakerAddress, bool locked);
   event FunctionPauseStatusChanged(string indexed functionName, bool isPaused);
+  event WithdrawalWaitingPeriodChanged(uint256 period);
 
   // ======== Modifiers ========
   /**
@@ -107,8 +111,8 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
     stakedToken = IERC20Upgradeable(_stakedToken);
 
     minStakeAmount = 0;
-
     rewardPeriod = 10 days;
+    withdrawalWaitingPeriod = 12 hours;
   }
 
   function __MuonNodeStakingUpgradeable_init_unchained() internal initializer {}
@@ -139,6 +143,7 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
     );
 
     users[msg.sender].balance += amount;
+    users[msg.sender].lastStakeTime = block.timestamp;
     totalStaked += amount;
 
     emit Staked(msg.sender, amount);
@@ -170,14 +175,19 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
     whenFunctionNotPaused("withdraw")
   {
     require(!lockedStakes[msg.sender], "Stake is locked.");
+    require(
+      users[msg.sender].lastStakeTime + withdrawalWaitingPeriod <
+        block.timestamp,
+      "Withdrawal waiting period"
+    );
 
     uint256 amount = users[msg.sender].balance;
 
-    if (amount > 0) {
-      totalStaked -= amount;
-      users[msg.sender].balance = 0;
-      IERC20Upgradeable(stakedToken).transfer(msg.sender, amount);
-    }
+    require(amount > 0, "Invalid balance");
+
+    totalStaked -= amount;
+    users[msg.sender].balance = 0;
+    IERC20Upgradeable(stakedToken).transfer(msg.sender, amount);
 
     emit Withdrawn(msg.sender);
   }
@@ -265,6 +275,13 @@ contract MRC404Staking is Initializable, AccessControlUpgradeable {
 
     functionPauseStatus[functionName] = pauseStatus;
     emit FunctionPauseStatusChanged(functionName, pauseStatus);
+  }
+
+  function setWithdrawalWaitingPeriod(
+    uint256 period
+  ) external onlyRole(DAO_ROLE) {
+    withdrawalWaitingPeriod = period;
+    emit WithdrawalWaitingPeriodChanged(period);
   }
 
   /**

@@ -28,7 +28,7 @@ abstract contract MRC404 is ERC404, AccessControl {
     address account_,
     bool value_
   ) external onlyRole(DAO_ROLE) {
-    _setWhitelist(account_, value_);
+    _setERC721TransferExempt(account_, value_);
   }
 
   function getUnits() external view returns (uint256) {
@@ -91,7 +91,7 @@ abstract contract MRC404 is ERC404, AccessControl {
     totalSupply -= amount;
 
     // Skip burn for certain addresses to save gas
-    if (!whitelist[from]) {
+    if (!erc721TransferExempt(from)) {
       uint256 tokensToWithdrawAndStore = (erc20BalanceOfSenderBefore / units) -
         (balanceOf[from] / units);
       nftIds = new uint256[](tokensToWithdrawAndStore);
@@ -100,14 +100,14 @@ abstract contract MRC404 is ERC404, AccessControl {
       }
     }
 
-    emit ERC20Transfer(from, address(0), amount);
+    emit ERC20Events.ERC20Transfer(from, address(0), amount);
   }
 
   function _burnFromERC721(
     address from,
     uint256[] calldata nftIds
   ) internal virtual {
-    if (from == address(0) || whitelist[from]) {
+    if (from == address(0) || erc721TransferExempt(from)) {
       revert InvalidSender();
     }
 
@@ -138,7 +138,7 @@ abstract contract MRC404 is ERC404, AccessControl {
       _transferERC721(from, address(0), id);
     }
 
-    emit ERC20Transfer(from, address(0), erc20Amount);
+    emit ERC20Events.ERC20Transfer(from, address(0), erc20Amount);
   }
 
   function _mint(
@@ -150,7 +150,7 @@ abstract contract MRC404 is ERC404, AccessControl {
     _transferERC20(address(0), to, amount);
 
     // Skip minting for certain addresses to save gas
-    if (!whitelist[to]) {
+    if (!erc721TransferExempt(to)) {
       uint256 tokensToRetrieveOrMint = (balanceOf[to] / units) -
         (erc20BalanceOfReceiverBefore / units);
       nftIds = new uint256[](tokensToRetrieveOrMint);

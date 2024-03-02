@@ -12,7 +12,7 @@ contract ERC404m is MRC404 {
     string memory _baseTokenURI
   ) MRC404("Muon ERC404", "ERC404m", 18, msg.sender) {
     baseTokenURI = _baseTokenURI;
-    _setWhitelist(msg.sender, true);
+    setSelfERC721TransferExempt(true);
     _grantRole(MINTER_ROLE, msg.sender);
   }
 
@@ -55,12 +55,25 @@ contract ERC404m is MRC404 {
   function tokenURI(uint256 _id) public view override returns (string memory) {
     uint8 rarity = getRarity(_id);
 
+    // return
+    //   string(
+    //     abi.encodePacked(
+    //       baseTokenURI,
+    //       Strings.toString(rarity),
+    //       "/",
+    //       Strings.toString(block.chainid),
+    //       "/",
+    //       Strings.toString(_id)
+    //     )
+    //   );
+
     return
-      string.concat(
-        baseTokenURI,
-        string.concat(
+      string(
+        abi.encodePacked(
+          baseTokenURI,
           Strings.toString(rarity),
-          string.concat("/", Strings.toString(_id))
+          "/",
+          Strings.toString(_id)
         )
       );
   }
