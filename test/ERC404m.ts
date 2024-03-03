@@ -4,7 +4,7 @@ import {
 import { expect, } from "chai";
 import { ethers } from "hardhat";
 import { ERC404m } from "../typechain-types";
-import { Signer, ContractReceipt } from "ethers";
+import { Signer } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 
@@ -92,12 +92,13 @@ describe("ERC404m", async () => {
       expect(await mrc404Token.balanceOf(wallet1.getAddress())).to.be.equal(ethers.parseEther("2"));
     })
 
-    it("Should wallet1 transfer .1 to wallet2 & tokenId:2 burn from wallet1 and mint it for wallet2", async () => {
+    it("Should wallet1 transfer .1 to wallet2 & tokenId:2 burn from wallet1 and mint tokenId:8 to wallet2", async () => {
       // TokenId:2 burned from wallet1 and mint again for wallet2
       await expect(mrc404Token.connect(wallet1).transfer(wallet2.getAddress(), ethers.parseEther(".1")))
       .to.emit(mrc404Token, "ERC20Transfer").withArgs(wallet1.getAddress(), wallet2.getAddress(), ethers.parseEther(".1"))
       .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet1.getAddress(), ethers.ZeroAddress, 2)
-      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 2);
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 8);
+
 
       expect(await mrc404Token.erc20BalanceOf(wallet1.getAddress())).to.be.equal(ethers.parseEther("1.9"));
       expect(await mrc404Token.erc20BalanceOf(wallet2.getAddress())).to.be.equal(ethers.parseEther("1"));
@@ -106,11 +107,11 @@ describe("ERC404m", async () => {
       expect(await mrc404Token.balanceOf(wallet1.getAddress())).to.be.equal(ethers.parseEther("1.9"));
     })
 
-    it("Should wallet2 transfer .1 to wallet4 & tokenId:2 burn from wallet2", async () => {
+    it("Should wallet2 transfer .1 to wallet4 & tokenId:8 burn from wallet2", async () => {
       // TokenId:2 burned from wallet1 and mint again for wallet2
       await expect(mrc404Token.connect(wallet2).transfer(wallet4.getAddress(), ethers.parseEther(".1")))
       .to.emit(mrc404Token, "ERC20Transfer").withArgs(wallet2.getAddress(), wallet4.getAddress(), ethers.parseEther(".1"))
-      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet2.getAddress(), ethers.ZeroAddress, 2)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet2.getAddress(), ethers.ZeroAddress, 8)
       // .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 2);
 
       expect(await mrc404Token.erc20BalanceOf(wallet2.getAddress())).to.be.equal(ethers.parseEther(".9"));
@@ -136,15 +137,15 @@ describe("ERC404m", async () => {
       // It mints tokenIds that have been burned already
       await expect(mrc404Token.connect(adminWallet).mint(wallet4.getAddress(), ethers.parseEther("2"), rarityBytes))
       .to.emit(mrc404Token, "ERC20Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), ethers.parseEther("2"))
-      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 2)
-      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 7)
-      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 2)
-      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 7)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 9)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 10)
+      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 9)
+      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 10)
       expect(await mrc404Token.erc20BalanceOf(wallet4.getAddress())).to.be.equal(ethers.parseEther("2.2"));
       expect(await mrc404Token.erc721BalanceOf(wallet4.getAddress())).to.be.equal(2);
       expect(await mrc404Token.balanceOf(wallet4.getAddress())).to.be.equal(ethers.parseEther("2.2"));
-      expect(await mrc404Token.ownerOf(2)).to.be.equal(wallet4.address);
-      expect(await mrc404Token.ownerOf(7)).to.be.equal(wallet4.address);
+      expect(await mrc404Token.ownerOf(9)).to.be.equal(wallet4.address);
+      expect(await mrc404Token.ownerOf(10)).to.be.equal(wallet4.address);
     })
 
   })
@@ -278,20 +279,20 @@ describe("ERC404m", async () => {
       )).to.be.revertedWithCustomError(mrc404Token, "ERC20InsufficientAllowance");
     })
 
-    it("Should adminWallet mint 1 erc20 and tokenId:5 for wallet2", async () => {
+    it("Should adminWallet mint 1 erc20 and tokenId:6 for wallet2", async () => {
       await expect(mrc404Token.connect(adminWallet).mint(wallet2.getAddress(), ethers.parseEther("1"), rarityBytes))
       .to.emit(mrc404Token, "ERC20Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), ethers.parseEther("1"))
-      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 5)
-      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 5)
-    })
-
-    it("Should adminWallet mint 2 erc20 and tokenId:4,6 for wallet2", async () => {
-      await expect(mrc404Token.connect(adminWallet).mint(wallet2.getAddress(), ethers.parseEther("2"), rarityBytes))
-      .to.emit(mrc404Token, "ERC20Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), ethers.parseEther("2"))
-      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 4)
-      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 4)
       .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 6)
       .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 6)
+    })
+
+    it("Should adminWallet mint 2 erc20 and tokenId:7,8 for wallet2", async () => {
+      await expect(mrc404Token.connect(adminWallet).mint(wallet2.getAddress(), ethers.parseEther("2"), rarityBytes))
+      .to.emit(mrc404Token, "ERC20Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), ethers.parseEther("2"))
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 7)
+      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 7)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 8)
+      .to.emit(mrc404Token, "Transfer").withArgs(ethers.ZeroAddress, wallet2.getAddress(), 8)
     })
 
     it("Should check totalSupply", async () => {
@@ -418,8 +419,8 @@ describe("ERC404m", async () => {
     it("Should add wallet1 and wallet2 to whitelist", async () => {
       await mrc404Token.connect(adminWallet).setWhitelist(wallet1.getAddress(), true);
       await mrc404Token.connect(adminWallet).setWhitelist(wallet2.getAddress(), true);
-      expect(await mrc404Token.whitelist(wallet1.getAddress())).to.be.equal(true);
-      expect(await mrc404Token.whitelist(wallet2.getAddress())).to.be.equal(true);
+      expect(await mrc404Token.erc721TransferExempt(wallet1.getAddress())).to.be.equal(true);
+      expect(await mrc404Token.erc721TransferExempt(wallet2.getAddress())).to.be.equal(true);
     })
 
     it("Should mint 5 ERC20 tokens for wallet1 and no ERC721", async () => {
@@ -450,7 +451,7 @@ describe("ERC404m", async () => {
       expect(await mrc404Token.erc721BalanceOf(wallet3.getAddress())).to.be.equal(2);
     })
 
-    it("Should wallet3 transfer 2 ERC20 to wallet2 and tokenId:1,2 bun from wallet3", async () => {
+    it("Should wallet3 transfer 2 ERC20 to wallet2 and tokenId:1,2 burn from wallet3", async () => {
       await expect(mrc404Token.connect(wallet3).transfer(wallet2.getAddress(), ethers.parseEther("2")))
       .to.emit(mrc404Token, "ERC20Transfer").withArgs(wallet3.getAddress(), wallet2.getAddress(), ethers.parseEther("2"))
       .to.emit(mrc404Token, "ERC721Transfer").withArgs(wallet3.getAddress(), ethers.ZeroAddress, 1)
@@ -461,15 +462,13 @@ describe("ERC404m", async () => {
       expect(await mrc404Token.erc721BalanceOf(wallet2.getAddress())).to.be.equal(0);
     })
 
-    it("Should prevent remove wallet1 from whitelist because of its erc20Balance >= units", async () => {
+    it("Should remove wallet1 with erc20Balance >= units from whitelist and mints tokenId:3", async () => {
       expect(await mrc404Token.erc20BalanceOf(wallet1.getAddress())).to.be.equal(ethers.parseEther("1"));
-      await expect((
-        mrc404Token.connect(adminWallet).setWhitelist(wallet1.getAddress(), false)
-      )).to.be.revertedWithCustomError(
-        mrc404Token,
-        'CannotRemoveFromWhitelist'
-      );
-    })
+      await expect(mrc404Token.connect(adminWallet).setWhitelist(wallet1.getAddress(), false))
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet1.address, 3);
+      expect(await mrc404Token.erc20BalanceOf(wallet1.getAddress())).to.be.equal(ethers.parseEther("1"));
+      expect(await mrc404Token.erc721BalanceOf(wallet1.getAddress())).to.be.equal(1);
+     })
 
     it("Should wallet2 approve 3 tokens for spender1", async () => {
       await expect(mrc404Token.connect(wallet2).approve(spender1.getAddress(), ethers.parseEther("3")))
@@ -477,25 +476,26 @@ describe("ERC404m", async () => {
       expect(await mrc404Token.allowance(wallet2.getAddress(), spender1.getAddress())).to.be.equal(ethers.parseEther("3"));
     })
 
-    it("Should spender1 transfers just 1 ERC20 from wallet1 to wallet2", async () => {
+    it("Should spender1 transfers just 1 ERC20 from wallet2 to wallet1 and mints tokenId:4", async () => {
       await expect(mrc404Token.connect(spender1).transferFrom(wallet2.getAddress(), wallet1.getAddress(), ethers.parseEther("1")))
       .to.emit(mrc404Token, "ERC20Transfer").withArgs(wallet2.getAddress(), wallet1.getAddress(), ethers.parseEther("1"))
-      expect(await mrc404Token.erc721BalanceOf(wallet1.getAddress())).to.be.equal(0);
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet1, 4)
+      expect(await mrc404Token.erc721BalanceOf(wallet1.getAddress())).to.be.equal(2);
       expect(await mrc404Token.erc721BalanceOf(wallet2.getAddress())).to.be.equal(0);
     })
 
-    it("Should spender1 transfers 1 ERC20 from wallet2 to wallet3 and tokenId:2 mints for wallet3", async () => {
+    it("Should spender1 transfers 1 ERC20 from wallet2 to wallet3 and tokenId:5 mints for wallet3", async () => {
       await expect(mrc404Token.connect(spender1).transferFrom(wallet2.getAddress(), wallet3.getAddress(), ethers.parseEther("1")))
       .to.emit(mrc404Token, "ERC20Transfer").withArgs(wallet2.getAddress(), wallet3.getAddress(), ethers.parseEther("1"))
-      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet3.getAddress(), 2)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet3.getAddress(), 5)
       expect(await mrc404Token.erc721BalanceOf(wallet3.getAddress())).to.be.equal(1);
       expect(await mrc404Token.erc721BalanceOf(wallet2.getAddress())).to.be.equal(0);
     })
 
-    it("Should spender1 transfers 1 ERC20 from wallet2 to wallet3 and tokenId:1 mints for wallet3", async () => {
+    it("Should spender1 transfers 1 ERC20 from wallet2 to wallet3 and tokenId:6 mints for wallet3", async () => {
       await expect(mrc404Token.connect(spender1).transferFrom(wallet2.getAddress(), wallet3.getAddress(), ethers.parseEther("1")))
       .to.emit(mrc404Token, "ERC20Transfer").withArgs(wallet2.getAddress(), wallet3.getAddress(), ethers.parseEther("1"))
-      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet3.getAddress(), 1)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet3.getAddress(), 6)
       expect(await mrc404Token.erc721BalanceOf(wallet3.getAddress())).to.be.equal(2);
       expect(await mrc404Token.erc721BalanceOf(wallet2.getAddress())).to.be.equal(0);
     })
@@ -503,16 +503,16 @@ describe("ERC404m", async () => {
     it("Should mint 5 tokens for wallet4", async () => {
       await expect(mrc404Token.connect(adminWallet).mint(wallet4.getAddress(), ethers.parseEther("5"), rarityBytes))
       .to.emit(mrc404Token, "ERC20Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), ethers.parseEther("5"))
-      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 3)
-      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 5)
       .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 7)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 9)
+      .to.emit(mrc404Token, "ERC721Transfer").withArgs(ethers.ZeroAddress, wallet4.getAddress(), 11)
       expect(await mrc404Token.erc20BalanceOf(wallet4.getAddress())).to.be.equal(ethers.parseEther("5"));
       expect(await mrc404Token.erc721BalanceOf(wallet4.getAddress())).to.be.equal(5);
     })
 
     it("Should add wallet4(with erc721 and erc20 balance) to whitelist", async () => {
       await mrc404Token.connect(adminWallet).setWhitelist(wallet4.getAddress(), true);
-      expect(await mrc404Token.whitelist(wallet4.getAddress())).to.be.equal(true);
+      expect(await mrc404Token.erc721TransferExempt(wallet4.getAddress())).to.be.equal(true);
     })
 
   })
